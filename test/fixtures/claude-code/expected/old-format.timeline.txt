@@ -1,0 +1,64 @@
+5e9b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d
+  2026-03-10 10:00 → 2026-03-10 10:06  ·  6m40s wall  ·  1m40s active
+  8 API calls (claude-sonnet-4-5, claude-opus-4-1)  ·  6 tool calls  ·  338 output, 51.2k cache-read, 18.2k cache-write, 18 uncached input tokens
+
+Where the time went
+                             time  active  count
+  model                     1m05s     65%  8
+  tool:Bash                   31s     31%  2
+  tool:WebFetch              2.5s      3%  1
+  tool:mcp__shop-db__query   1.0s      1%  1
+  tool:Write                 0.3s      0%  1
+  tool:Skill                 0.1s      0%  1
+  idle: waiting on you      5m00s
+
+Bash by command (sum of call durations)
+             time  calls   max  failed
+  pnpm test   30s      1   30s
+  git log    1.0s      1  1.0s
+
+Slowest tool calls
+  #3  10:06:05   30s  Bash                 Run the cart tests · pnpm test
+  #1  10:00:12  2.5s  WebFetch             https://vitest.dev/api/expect.html
+  #1  10:00:05  1.0s  Bash                 git -C /home/dev/shop log --oneline -3
+  #1  10:00:30  1.0s  mcp__shop-db__query  {"sql":"select count(*) from carts"}
+  #1  10:00:50  0.3s  Write                src/store/cart.test.ts
+  #1  10:00:20  0.1s  Skill                testing
+
+Slowest model responses
+  #1  10:00:50   19s  120 out  Write src/store/cart.test.ts
+  #1  10:00:30  9.9s   35 out  mcp__shop-db__query {"sql":"select count(*) from carts"}
+  #1  10:01:00  9.7s   10 out  “Added src/store/cart.test.ts.”
+  #1  10:00:12  6.0s   45 out  WebFetch https://vitest.dev/api/expect.html
+  #1  10:00:20  5.5s   20 out  Skill testing
+  #3  10:06:05  5.0s   40 out  Bash Run the cart tests · pnpm test
+  #3  10:06:40  5.0s    8 out  “The cart total test passes.”
+  #1  10:00:05  5.0s   60 out  Bash git -C /home/dev/shop log --oneline -3
+
+Turns (active time only; idle time is between turns)
+      start     by       active  model  tools  calls  tools#  top tools                 prompt
+  #1  10:00:00  you       1m00s    55s   4.9s      6       5  WebFetch 2.5s, Bash 1.0s  Add a test for the cart total
+  #2  10:05:00  command    0.0s   0.0s   0.0s      0       0                            /model
+  #3  10:06:00  you         40s    10s    30s      2       1  Bash 30s                  Now run it
+
+── #1 10:00:00 you: Add a test for the cart total
+10:00:05    5.0s  model         60 out  Bash git -C /home/dev/shop log --oneline -3
+10:00:06    1.0s  Bash       git -C /home/dev/shop log --oneline -3
+10:00:12    6.0s  model         45 out  WebFetch https://vitest.dev/api/expect.html
+10:00:14    2.5s  WebFetch   https://vitest.dev/api/expect.html
+10:00:20    5.5s  model         20 out  Skill testing
+10:00:20    0.1s  Skill      testing
+10:00:30    9.9s  model         35 out  mcp__shop-db__query {"sql":"select count(*) from carts"}
+10:00:31    1.0s  mcp__shop-db__query {"sql":"select count(*) from carts"}
+10:00:50     19s  model        120 out  Write src/store/cart.test.ts
+10:00:50    0.3s  Write      src/store/cart.test.ts
+10:01:00    9.7s  model         10 out  “Added src/store/cart.test.ts.”
+10:05:00   4m00s  … waiting on you
+
+── #2 10:05:00 command: /model
+10:06:00   1m00s  … waiting on you
+
+── #3 10:06:00 you: Now run it
+10:06:05    5.0s  model         40 out  Bash Run the cart tests · pnpm test
+10:06:35     30s  Bash       Run the cart tests · pnpm test
+10:06:40    5.0s  model          8 out  “The cart total test passes.”

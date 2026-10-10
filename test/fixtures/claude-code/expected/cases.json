@@ -1,0 +1,172 @@
+[
+  {
+    "file": "list.txt",
+    "command": [
+      "list"
+    ]
+  },
+  {
+    "file": "badge.txt",
+    "command": [
+      "report",
+      "5e1f"
+    ]
+  },
+  {
+    "file": "badge.timeline.txt",
+    "command": [
+      "report",
+      "5e1f",
+      "--timeline"
+    ]
+  },
+  {
+    "file": "old-format.txt",
+    "command": [
+      "report",
+      "5e9b"
+    ]
+  },
+  {
+    "file": "old-format.timeline.txt",
+    "command": [
+      "report",
+      "5e9b",
+      "--timeline"
+    ]
+  },
+  {
+    "file": "compaction.txt",
+    "command": [
+      "report",
+      "c3d4"
+    ]
+  },
+  {
+    "file": "compaction.timeline.txt",
+    "command": [
+      "report",
+      "c3d4",
+      "--timeline"
+    ]
+  },
+  {
+    "file": "agent-review.txt",
+    "command": [
+      "report",
+      "a1b2"
+    ]
+  },
+  {
+    "file": "agent-review.timeline.txt",
+    "command": [
+      "report",
+      "a1b2",
+      "--timeline"
+    ]
+  },
+  {
+    "file": "agent-nested.txt",
+    "command": [
+      "report",
+      "a9f8"
+    ]
+  },
+  {
+    "file": "agent-nested.timeline.txt",
+    "command": [
+      "report",
+      "a9f8",
+      "--timeline"
+    ]
+  },
+  {
+    "file": "agent-plan.txt",
+    "command": [
+      "report",
+      "ab12"
+    ]
+  },
+  {
+    "file": "agent-plan.timeline.txt",
+    "command": [
+      "report",
+      "ab12",
+      "--timeline"
+    ]
+  },
+  {
+    "file": "agent-write.txt",
+    "command": [
+      "report",
+      "ac98"
+    ]
+  },
+  {
+    "file": "agent-write.timeline.txt",
+    "command": [
+      "report",
+      "ac98",
+      "--timeline"
+    ]
+  },
+  {
+    "file": "badge.turn-2.txt",
+    "command": [
+      "report",
+      "5e1f",
+      "--timeline",
+      "--turn",
+      "2"
+    ]
+  },
+  {
+    "file": "badge.turn-9.txt",
+    "command": [
+      "report",
+      "5e1f",
+      "--timeline",
+      "--turn",
+      "9"
+    ]
+  },
+  {
+    "file": "badge.top-3.no-subagents.txt",
+    "command": [
+      "report",
+      "5e1f",
+      "--top",
+      "3",
+      "--no-subagents"
+    ]
+  },
+  {
+    "file": "badge.top-0.txt",
+    "command": [
+      "report",
+      "5e1f",
+      "--top",
+      "0"
+    ]
+  },
+  {
+    "file": "badge.min-idle-600.txt",
+    "command": [
+      "report",
+      "5e1f",
+      "--timeline",
+      "--min-idle",
+      "600"
+    ]
+  },
+  {
+    "file": "badge.min-idle-0.5.txt",
+    "command": [
+      "report",
+      "5e1f",
+      "--timeline",
+      "--min-idle",
+      "0.5"
+    ]
+  }
+]

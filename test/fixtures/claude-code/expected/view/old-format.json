@@ -1,0 +1,489 @@
+{
+ "groups": [
+  {
+   "id": "main",
+   "label": "Session"
+  }
+ ],
+ "lanes": [
+  {
+   "id": "main",
+   "label": "Main session",
+   "group": "main",
+   "parent": null,
+   "start": 1773133200010,
+   "end": 1773133600000,
+   "title": null,
+   "seg": [
+    [
+     1773133200010,
+     1773133205000,
+     "model"
+    ],
+    [
+     1773133205000,
+     1773133206000,
+     "tool:Bash"
+    ],
+    [
+     1773133206000,
+     1773133212000,
+     "model"
+    ],
+    [
+     1773133212000,
+     1773133214500,
+     "tool:WebFetch"
+    ],
+    [
+     1773133214500,
+     1773133220000,
+     "model"
+    ],
+    [
+     1773133220000,
+     1773133220100,
+     "tool:Skill"
+    ],
+    [
+     1773133220100,
+     1773133230000,
+     "model"
+    ],
+    [
+     1773133230000,
+     1773133231000,
+     "tool:mcp__shop-db__query"
+    ],
+    [
+     1773133231000,
+     1773133250000,
+     "model"
+    ],
+    [
+     1773133250000,
+     1773133250300,
+     "tool:Write"
+    ],
+    [
+     1773133250300,
+     1773133260000,
+     "model"
+    ],
+    [
+     1773133260000,
+     1773133560000,
+     "idle: waiting on you"
+    ],
+    [
+     1773133560000,
+     1773133565000,
+     "model"
+    ],
+    [
+     1773133565000,
+     1773133595000,
+     "tool:Bash"
+    ],
+    [
+     1773133595000,
+     1773133600000,
+     "model"
+    ]
+   ],
+   "spans": [
+    {
+     "t": "m",
+     "s": 1773133200010,
+     "e": 1773133205000,
+     "ms": 4990,
+     "model": "claude-sonnet-4-5",
+     "syn": false,
+     "out": 60,
+     "cr": 0,
+     "cw": 8000,
+     "stop": "tool_use",
+     "think": false,
+     "text": "",
+     "tools": [
+      1
+     ],
+     "sum": "Bash git -C /home/dev/shop log --oneline -3",
+     "turn": 1
+    },
+    {
+     "t": "t",
+     "s": 1773133205000,
+     "e": 1773133206000,
+     "ms": 1000,
+     "name": "Bash",
+     "pv": "git -C /home/dev/shop log --oneline -3",
+     "desc": "",
+     "in": "git -C /home/dev/shop log --oneline -3",
+     "out": "a1b2c3d Add the cart store\n9f8e7d6 Add the header\n0a1b2c3 Initial commit",
+     "err": false,
+     "intr": false,
+     "async": false,
+     "bgEnd": null,
+     "agent": null,
+     "run": null,
+     "turn": 1
+    },
+    {
+     "t": "m",
+     "s": 1773133206000,
+     "e": 1773133212000,
+     "ms": 6000,
+     "model": "claude-sonnet-4-5",
+     "syn": false,
+     "out": 45,
+     "cr": 8000,
+     "cw": 200,
+     "stop": "tool_use",
+     "think": false,
+     "text": "",
+     "tools": [
+      3
+     ],
+     "sum": "WebFetch https://vitest.dev/api/expect.html",
+     "turn": 1
+    },
+    {
+     "t": "t",
+     "s": 1773133212000,
+     "e": 1773133214500,
+     "ms": 2500,
+     "name": "WebFetch",
+     "pv": "https://vitest.dev/api/expect.html",
+     "desc": "",
+     "in": "{\n  \"url\": \"https://vitest.dev/api/expect.html\",\n  \"prompt\": \"How does expect.soft work?\"\n}",
+     "out": "expect.soft keeps the test running after a failed assertion.",
+     "err": false,
+     "intr": false,
+     "async": false,
+     "bgEnd": null,
+     "agent": null,
+     "run": null,
+     "turn": 1
+    },
+    {
+     "t": "m",
+     "s": 1773133214500,
+     "e": 1773133220000,
+     "ms": 5500,
+     "model": "claude-sonnet-4-5",
+     "syn": false,
+     "out": 20,
+     "cr": 8200,
+     "cw": 150,
+     "stop": "tool_use",
+     "think": false,
+     "text": "",
+     "tools": [
+      5
+     ],
+     "sum": "Skill testing",
+     "turn": 1
+    },
+    {
+     "t": "t",
+     "s": 1773133220000,
+     "e": 1773133220100,
+     "ms": 100,
+     "name": "Skill",
+     "pv": "testing",
+     "desc": "",
+     "in": "{\n  \"skill\": \"testing\"\n}",
+     "out": "Launching skill: testing",
+     "err": false,
+     "intr": false,
+     "async": false,
+     "bgEnd": null,
+     "agent": null,
+     "run": null,
+     "turn": 1
+    },
+    {
+     "t": "m",
+     "s": 1773133220100,
+     "e": 1773133230000,
+     "ms": 9900,
+     "model": "claude-sonnet-4-5",
+     "syn": false,
+     "out": 35,
+     "cr": 8350,
+     "cw": 300,
+     "stop": "tool_use",
+     "think": false,
+     "text": "",
+     "tools": [
+      7
+     ],
+     "sum": "mcp__shop-db__query {\"sql\":\"select count(*) from carts\"}",
+     "turn": 1
+    },
+    {
+     "t": "t",
+     "s": 1773133230000,
+     "e": 1773133231000,
+     "ms": 1000,
+     "name": "mcp__shop-db__query",
+     "pv": "{\"sql\":\"select count(*) from carts\"}",
+     "desc": "",
+     "in": "{\n  \"sql\": \"select count(*) from carts\"\n}",
+     "out": "count\n-----\n42",
+     "err": false,
+     "intr": false,
+     "async": false,
+     "bgEnd": null,
+     "agent": null,
+     "run": null,
+     "turn": 1
+    },
+    {
+     "t": "m",
+     "s": 1773133231000,
+     "e": 1773133250000,
+     "ms": 19000,
+     "model": "claude-sonnet-4-5",
+     "syn": false,
+     "out": 120,
+     "cr": 8650,
+     "cw": 250,
+     "stop": "tool_use",
+     "think": false,
+     "text": "",
+     "tools": [
+      9
+     ],
+     "sum": "Write src/store/cart.test.ts",
+     "turn": 1
+    },
+    {
+     "t": "t",
+     "s": 1773133250000,
+     "e": 1773133250300,
+     "ms": 300,
+     "name": "Write",
+     "pv": "src/store/cart.test.ts",
+     "desc": "",
+     "in": "/home/dev/shop/src/store/cart.test.ts\n\nimport { total } from './cart';\n\ntest('sums the items', () => {\n  expect(total({ items: [{ price: 2 }, { price: 3 }] })).toBe(5);\n});\n",
+     "out": "File created successfully at: /home/dev/shop/src/store/cart.test.ts",
+     "err": false,
+     "intr": false,
+     "async": false,
+     "bgEnd": null,
+     "agent": null,
+     "run": null,
+     "turn": 1
+    },
+    {
+     "t": "m",
+     "s": 1773133250300,
+     "e": 1773133260000,
+     "ms": 9700,
+     "model": "claude-sonnet-4-5",
+     "syn": false,
+     "out": 10,
+     "cr": 8900,
+     "cw": 140,
+     "stop": "end_turn",
+     "think": false,
+     "text": "Added src/store/cart.test.ts.",
+     "tools": [],
+     "sum": "“Added src/store/cart.test.ts.”",
+     "turn": 1
+    },
+    {
+     "t": "m",
+     "s": 1773133560000,
+     "e": 1773133565000,
+     "ms": 5000,
+     "model": "claude-opus-4-1",
+     "syn": false,
+     "out": 40,
+     "cr": 0,
+     "cw": 9100,
+     "stop": "tool_use",
+     "think": false,
+     "text": "",
+     "tools": [
+      12
+     ],
+     "sum": "Bash Run the cart tests · pnpm test",
+     "turn": 3
+    },
+    {
+     "t": "t",
+     "s": 1773133565000,
+     "e": 1773133595000,
+     "ms": 30000,
+     "name": "Bash",
+     "pv": "Run the cart tests · pnpm test",
+     "desc": "Run the cart tests",
+     "in": "FOO=1 pnpm --filter @shop/web test",
+     "out": " PASS  src/store/cart.test.ts\n  ✓ sums the items (2 ms)",
+     "err": false,
+     "intr": false,
+     "async": false,
+     "bgEnd": null,
+     "agent": null,
+     "run": null,
+     "turn": 3
+    },
+    {
+     "t": "m",
+     "s": 1773133595000,
+     "e": 1773133600000,
+     "ms": 5000,
+     "model": "claude-opus-4-1",
+     "syn": false,
+     "out": 8,
+     "cr": 9100,
+     "cw": 100,
+     "stop": "end_turn",
+     "think": false,
+     "text": "The cart total test passes.",
+     "tools": [],
+     "sum": "“The cart total test passes.”",
+     "turn": 3
+    }
+   ],
+   "turns": [
+    {
+     "n": 1,
+     "ts": 1773133200010,
+     "end": 1773133260000,
+     "kind": "you",
+     "text": "Add a test for the cart total",
+     "calls": 6,
+     "tools": 5,
+     "b": [
+      [
+       "model",
+       55090
+      ],
+      [
+       "tool:Bash",
+       1000
+      ],
+      [
+       "tool:WebFetch",
+       2500
+      ],
+      [
+       "tool:Skill",
+       100
+      ],
+      [
+       "tool:mcp__shop-db__query",
+       1000
+      ],
+      [
+       "tool:Write",
+       300
+      ]
+     ]
+    },
+    {
+     "n": 2,
+     "ts": 1773133500000,
+     "end": 1773133500000,
+     "kind": "command",
+     "text": "/model",
+     "calls": 0,
+     "tools": 0,
+     "b": []
+    },
+    {
+     "n": 3,
+     "ts": 1773133560000,
+     "end": 1773133600000,
+     "kind": "you",
+     "text": "Now run it",
+     "calls": 2,
+     "tools": 1,
+     "b": [
+      [
+       "model",
+       10000
+      ],
+      [
+       "tool:Bash",
+       30000
+      ]
+     ]
+    }
+   ],
+   "buckets": [
+    [
+     "idle: waiting on you",
+     300000
+    ],
+    [
+     "model",
+     65090
+    ],
+    [
+     "tool:Bash",
+     31000
+    ],
+    [
+     "tool:WebFetch",
+     2500
+    ],
+    [
+     "tool:mcp__shop-db__query",
+     1000
+    ],
+    [
+     "tool:Write",
+     300
+    ],
+    [
+     "tool:Skill",
+     100
+    ]
+   ],
+   "bash": [
+    [
+     "pnpm test",
+     30000,
+     1,
+     30000,
+     0
+    ],
+    [
+     "git log",
+     1000,
+     1,
+     1000,
+     0
+    ]
+   ],
+   "stats": {
+    "wall": 399990,
+    "active": 99990,
+    "model": 65090,
+    "tools": 34900,
+    "you": 300000,
+    "calls": 8,
+    "toolCalls": 6,
+    "out": 338,
+    "cacheRead": 51200,
+    "cacheWrite": 18240,
+    "models": [
+     "claude-sonnet-4-5",
+     "claude-opus-4-1"
+    ],
+    "compactions": []
+   }
+  }
+ ],
+ "session": {
+  "id": "5e9b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  "title": null,
+  "cwd": "/home/dev/shop",
+  "file": "5e9b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d.jsonl"
+ }
+}

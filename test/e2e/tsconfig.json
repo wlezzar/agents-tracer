@@ -1,0 +1,10 @@
+{
+  // The browser tests: Node, and the DOM for the code they run in the page (page.evaluate).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["."]
+}

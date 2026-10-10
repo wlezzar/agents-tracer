@@ -1,0 +1,209 @@
+{
+ "groups": [
+  {
+   "id": "main",
+   "label": "Session"
+  }
+ ],
+ "lanes": [
+  {
+   "id": "main",
+   "label": "Main session",
+   "group": "main",
+   "parent": null,
+   "start": 1773533131000,
+   "end": 1773533210000,
+   "title": null,
+   "seg": [
+    [
+     1773533131000,
+     1773533160000,
+     "model"
+    ],
+    [
+     1773533160000,
+     1773533160200,
+     "tool:Write"
+    ],
+    [
+     1773533160200,
+     1773533170000,
+     "model"
+    ],
+    [
+     1773533170000,
+     1773533200000,
+     "tool:Bash"
+    ],
+    [
+     1773533200000,
+     1773533210000,
+     "model"
+    ]
+   ],
+   "spans": [
+    {
+     "t": "m",
+     "s": 1773533131000,
+     "e": 1773533160000,
+     "ms": 29000,
+     "model": "claude-opus-4-1",
+     "syn": false,
+     "out": 210,
+     "cr": 0,
+     "cw": 4200,
+     "stop": "tool_use",
+     "think": false,
+     "text": "",
+     "tools": [
+      1
+     ],
+     "sum": "Write src/components/CartBadge.test.tsx",
+     "turn": 1
+    },
+    {
+     "t": "t",
+     "s": 1773533160000,
+     "e": 1773533160200,
+     "ms": 200,
+     "name": "Write",
+     "pv": "src/components/CartBadge.test.tsx",
+     "desc": "",
+     "in": "/home/dev/shop/src/components/CartBadge.test.tsx\n\nimport { render } from '@testing-library/react';\nimport { CartBadge } from './CartBadge';\n\ntest('hides at zero', () => {\n  expect(render(<CartBadge count={0} />).container.firstChild).toBeNull();\n});\n",
+     "out": "File created successfully at: /home/dev/shop/src/components/CartBadge.test.tsx",
+     "err": false,
+     "intr": false,
+     "async": false,
+     "bgEnd": null,
+     "agent": null,
+     "run": null,
+     "turn": 1
+    },
+    {
+     "t": "m",
+     "s": 1773533160200,
+     "e": 1773533170000,
+     "ms": 9800,
+     "model": "claude-opus-4-1",
+     "syn": false,
+     "out": 50,
+     "cr": 4200,
+     "cw": 260,
+     "stop": "tool_use",
+     "think": false,
+     "text": "",
+     "tools": [
+      3
+     ],
+     "sum": "Bash Run the new tests · pnpm test",
+     "turn": 1
+    },
+    {
+     "t": "t",
+     "s": 1773533170000,
+     "e": 1773533200000,
+     "ms": 30000,
+     "name": "Bash",
+     "pv": "Run the new tests · pnpm test",
+     "desc": "Run the new tests",
+     "in": "pnpm test -- CartBadge",
+     "out": " PASS  src/components/CartBadge.test.tsx\n  ✓ hides at zero (4 ms)",
+     "err": false,
+     "intr": false,
+     "async": false,
+     "bgEnd": null,
+     "agent": null,
+     "run": null,
+     "turn": 1
+    },
+    {
+     "t": "m",
+     "s": 1773533200000,
+     "e": 1773533210000,
+     "ms": 10000,
+     "model": "claude-opus-4-1",
+     "syn": false,
+     "out": 18,
+     "cr": 4460,
+     "cw": 120,
+     "stop": "end_turn",
+     "think": false,
+     "text": "Wrote src/components/CartBadge.test.tsx; it passes.",
+     "tools": [],
+     "sum": "“Wrote src/components/CartBadge.test.tsx; it passes.”",
+     "turn": 1
+    }
+   ],
+   "turns": [
+    {
+     "n": 1,
+     "ts": 1773533131000,
+     "end": 1773533210000,
+     "kind": "you",
+     "text": "Write the planned tests for src/components/CartBadge.tsx.",
+     "calls": 3,
+     "tools": 2,
+     "b": [
+      [
+       "model",
+       48800
+      ],
+      [
+       "tool:Write",
+       200
+      ],
+      [
+       "tool:Bash",
+       30000
+      ]
+     ]
+    }
+   ],
+   "buckets": [
+    [
+     "model",
+     48800
+    ],
+    [
+     "tool:Bash",
+     30000
+    ],
+    [
+     "tool:Write",
+     200
+    ]
+   ],
+   "bash": [
+    [
+     "pnpm test",
+     30000,
+     1,
+     30000,
+     0
+    ]
+   ],
+   "stats": {
+    "wall": 79000,
+    "active": 79000,
+    "model": 48800,
+    "tools": 30200,
+    "you": 0,
+    "calls": 3,
+    "toolCalls": 2,
+    "out": 278,
+    "cacheRead": 8660,
+    "cacheWrite": 4580,
+    "models": [
+     "claude-opus-4-1"
+    ],
+    "compactions": []
+   }
+  }
+ ],
+ "session": {
+  "id": "agent-ac98ba76dc54fe32a",
+  "title": null,
+  "cwd": "/home/dev/shop",
+  "file": "5e1f0c2a-8b3d-4c6e-9f7a-1d2b3c4d5e6f/subagents/workflows/wf_3e9a1c7b-5d2/agent-ac98ba76dc54fe32a.jsonl"
+ }
+}

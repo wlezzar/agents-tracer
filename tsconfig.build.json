@@ -1,0 +1,13 @@
+{
+  // Emits the Node code to dist. The viewer client is bundled by scripts/build.ts instead.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "rootDir": "src",
+    "outDir": "dist",
+    "sourceMap": true,
+    "noEmit": false
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/viewer/client"]
+}

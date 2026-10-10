@@ -1,0 +1,24 @@
+agent-ab12cd34ef56ab78c
+  2026-03-15 01:05 → 2026-03-15 01:05  ·  22s wall  ·  22s active
+  2 API calls (claude-opus-4-1)  ·  1 tool calls  ·  130 output, 4.0k cache-read, 4.2k cache-write, 5 uncached input tokens
+
+Where the time went
+             time  active  count
+  model       22s    100%  2
+  tool:Read  0.1s      0%  1
+
+Slowest tool calls
+  #1  01:05:12  0.1s  Read  src/components/CartBadge.tsx
+
+Slowest model responses
+  #1  01:05:30   18s  40 out  “Plan: it renders the count, hides at zero, and has an aria-…”
+  #1  01:05:12  4.0s  90 out  thinking · Read src/components/CartBadge.tsx
+
+Turns (active time only; idle time is between turns)
+      start     by   active  model  tools  calls  tools#  top tools  prompt
+  #1  01:05:08  you     22s    22s   0.1s      2       1  Read 0.1s  Plan the tests for src/components/CartBadge.tsx.
+
+── #1 01:05:08 you: Plan the tests for src/components/CartBadge.tsx.
+01:05:12    4.0s  model         90 out  thinking · Read src/components/CartBadge.tsx
+01:05:12    0.1s  Read       src/components/CartBadge.tsx
+01:05:30     18s  model         40 out  “Plan: it renders the count, hides at zero, and has an aria-…”

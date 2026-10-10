@@ -1,0 +1,10 @@
+{
+  // The browser client: DOM, no Node types. esbuild bundles it (scripts/build.ts); tsc only checks.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "types": [],
+    "noEmit": true
+  },
+  "include": ["."]
+}

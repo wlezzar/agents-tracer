@@ -1,0 +1,43 @@
+5e1f0c2a-8b3d-4c6e-9f7a-1d2b3c4d5e6f  “Cart badge in the header”
+  2026-03-14 23:50 → 2026-03-15 01:21  ·  1h31m wall  ·  9m25s active
+  21 API calls (claude-opus-4-1, claude-sonnet-4-5)  ·  16 tool calls  ·  2.2k output, 390.3k cache-read, 35.0k cache-write, 47 uncached input tokens
+
+Where the time went
+                                                    time  active  count
+  model                                            3m49s     41%  21
+  tool:Bash                                        3m32s     38%  6
+  you: answering questions                         2m00s     21%  1
+  tool:Agent                                        1.0s      0%  1
+  tool:Workflow                                     1.0s      0%  1
+  tool:Edit                                         0.7s      0%  2
+  tool:Grep                                         0.5s      0%  1
+  tool:Read                                         0.5s      0%  2
+  tool:TaskStop                                     0.3s      0%  1
+  tool:Write                                        0.2s      0%  1
+  idle: waiting on you                            52m20s
+  idle: waiting on you, background tasks running  23m15s
+  idle: waiting on a background task               6m20s
+
+Bash by command (sum of call durations)
+    time  calls  max  failed
+
+Turns (active time only; idle time is between turns)
+      start           by       active  model  tools  calls  tools#  top tools                                   prompt
+  #1  03-14 23:50:00  command    0.0s   0.0s   0.0s      0       0                                              /clear
+  #2  03-14 23:52:10  you       5m10s  1m38s  1m32s      8       8  you: answering questions 2m00s, Bash 1m31s  Add a cart badge to the header that shows how many items ar…
+  #3  03-15 00:10:00  you       1m10s   9.8s  1m00s      2       2  Bash 1m00s, Read 0.3s                       Look at the design mock and run the e2e tests
+  #4  03-15 00:12:00  you       1m40s    38s  1m02s      5       4  Bash 1m01s, Agent 1.0s                      Stop the dev server, build in the background, and have an a…
+  #5  03-15 00:20:00  task        20s    20s   0.3s      2       1  Edit 0.3s                                   Agent "Review the cart badge" completed
+  #6  03-15 01:05:00  you         15s    14s   1.0s      2       1  Workflow 1.0s                               Run the add-tests workflow for the badge
+  #7  03-15 01:20:00  you         30s    30s   0.0s      1       0                                              Thanks. Summarize what changed.
+  #8  03-15 01:21:00  you         20s    20s   0.0s      1       0                                              Try again
+
+Subagents (they run alongside the session, so their time overlaps it)
+  start            wall  model  tools  calls  out  top tools              agent
+  03-15 00:12:11  7m47s  7m46s   1.2s      3    -  Agent 1.0s, Read 0.2s  Review the cart badge [background, a1b2c3d4e]
+  03-15 00:12:31    19s    19s   0.3s      3   74  Grep 0.2s, Glob 0.1s   Check the badge styles [background, a9f8e7d6c]
+
+  Workflow add-tests wf_3e9a1c7b-5d2 · completed · 9m53s · 2 agents · 48.2k tokens
+    start            wall  model  tools  calls  out  top tools             agent
+    03-15 01:05:08    22s    22s   0.1s      2  130  Read 0.1s             plan: Plan tests for CartBadge [ab12cd34e]
+    03-15 01:05:31  1m19s    49s    30s      3  278  Bash 30s, Write 0.2s  write: Write tests for CartBadge [ac98ba76d]

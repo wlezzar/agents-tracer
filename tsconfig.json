@@ -1,0 +1,13 @@
+{
+  // Type-checks the Node code, its tests, the scripts, the config files, and the types of the
+  // ESLint module the tests read. The browser client has its own config in
+  // src/viewer/client/tsconfig.json, and the browser tests theirs in test/e2e/tsconfig.json;
+  // tsconfig.build.json emits src to dist.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src", "test", "scripts", "*.config.ts", "eslint/*.d.mts"],
+  "exclude": ["src/viewer/client", "test/e2e"]
+}

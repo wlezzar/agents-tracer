@@ -1,0 +1,10 @@
+dist/
+coverage/
+local/
+.tmp/
+pnpm-lock.yaml
+# The viewer's markup and CSS are the prototype's, kept as they are: reflowing HTML can change
+# the whitespace between inline elements, and so the pixels.
+src/viewer/template.html
+# Fixtures are files as the agent writes them, one JSON value per line.
+test/fixtures/

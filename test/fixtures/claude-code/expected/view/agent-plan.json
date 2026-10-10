@@ -1,0 +1,146 @@
+{
+ "groups": [
+  {
+   "id": "main",
+   "label": "Session"
+  }
+ ],
+ "lanes": [
+  {
+   "id": "main",
+   "label": "Main session",
+   "group": "main",
+   "parent": null,
+   "start": 1773533108000,
+   "end": 1773533130000,
+   "title": null,
+   "seg": [
+    [
+     1773533108000,
+     1773533112000,
+     "model"
+    ],
+    [
+     1773533112000,
+     1773533112100,
+     "tool:Read"
+    ],
+    [
+     1773533112100,
+     1773533130000,
+     "model"
+    ]
+   ],
+   "spans": [
+    {
+     "t": "m",
+     "s": 1773533108000,
+     "e": 1773533112000,
+     "ms": 4000,
+     "model": "claude-opus-4-1",
+     "syn": false,
+     "out": 90,
+     "cr": 0,
+     "cw": 4000,
+     "stop": "tool_use",
+     "think": true,
+     "text": "",
+     "tools": [
+      1
+     ],
+     "sum": "thinking · Read src/components/CartBadge.tsx",
+     "turn": 1
+    },
+    {
+     "t": "t",
+     "s": 1773533112000,
+     "e": 1773533112100,
+     "ms": 100,
+     "name": "Read",
+     "pv": "src/components/CartBadge.tsx",
+     "desc": "",
+     "in": "{\n  \"file_path\": \"/home/dev/shop/src/components/CartBadge.tsx\"\n}",
+     "out": "1\texport function CartBadge({ count }: { count: number }) {\n2\t  if (count === 0) return null;\n3\t  return <span className=\"badge\" aria-label={`${count} items in cart`}>{count}</span>;\n4\t}\n",
+     "err": false,
+     "intr": false,
+     "async": false,
+     "bgEnd": null,
+     "agent": null,
+     "run": null,
+     "turn": 1
+    },
+    {
+     "t": "m",
+     "s": 1773533112100,
+     "e": 1773533130000,
+     "ms": 17900,
+     "model": "claude-opus-4-1",
+     "syn": false,
+     "out": 40,
+     "cr": 4000,
+     "cw": 150,
+     "stop": "end_turn",
+     "think": false,
+     "text": "Plan: it renders the count, hides at zero, and has an aria-label.",
+     "tools": [],
+     "sum": "“Plan: it renders the count, hides at zero, and has an aria-…”",
+     "turn": 1
+    }
+   ],
+   "turns": [
+    {
+     "n": 1,
+     "ts": 1773533108000,
+     "end": 1773533130000,
+     "kind": "you",
+     "text": "Plan the tests for src/components/CartBadge.tsx.",
+     "calls": 2,
+     "tools": 1,
+     "b": [
+      [
+       "model",
+       21900
+      ],
+      [
+       "tool:Read",
+       100
+      ]
+     ]
+    }
+   ],
+   "buckets": [
+    [
+     "model",
+     21900
+    ],
+    [
+     "tool:Read",
+     100
+    ]
+   ],
+   "bash": [],
+   "stats": {
+    "wall": 22000,
+    "active": 22000,
+    "model": 21900,
+    "tools": 100,
+    "you": 0,
+    "calls": 2,
+    "toolCalls": 1,
+    "out": 130,
+    "cacheRead": 4000,
+    "cacheWrite": 4150,
+    "models": [
+     "claude-opus-4-1"
+    ],
+    "compactions": []
+   }
+  }
+ ],
+ "session": {
+  "id": "agent-ab12cd34ef56ab78c",
+  "title": null,
+  "cwd": "/home/dev/shop",
+  "file": "5e1f0c2a-8b3d-4c6e-9f7a-1d2b3c4d5e6f/subagents/workflows/wf_3e9a1c7b-5d2/agent-ab12cd34ef56ab78c.jsonl"
+ }
+}

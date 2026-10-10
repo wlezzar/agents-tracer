@@ -1,0 +1,22 @@
+agent-a1b2c3d4e5f6a7b8c
+  2026-03-15 00:12 → 2026-03-15 00:19  ·  7m47s wall  ·  7m47s active
+  3 API calls (claude-opus-4-1)  ·  2 tool calls  ·  tokens not recorded (subagent transcript)
+
+Where the time went
+               time  active  count
+  model       7m46s    100%  3
+  tool:Agent   1.0s      0%  1
+  tool:Read    0.2s      0%  1
+
+Slowest tool calls
+  #1  00:12:30  1.0s  Agent  Check the badge styles (Explore)
+  #1  00:12:15  0.2s  Read   src/components/CartBadge.tsx
+
+Slowest model responses
+  #1  00:19:58  7m27s    “The badge renders correctly; consider an aria-label.”
+  #1  00:12:30    15s    Agent Check the badge styles (Explore)
+  #1  00:12:15   3.8s    Read src/components/CartBadge.tsx
+
+Turns (active time only; idle time is between turns)
+      start     by   active  model  tools  calls  tools#  top tools              prompt
+  #1  00:12:11  you   7m47s  7m46s   1.2s      3       2  Agent 1.0s, Read 0.2s  Review src/components/CartBadge.tsx and its use in the head…

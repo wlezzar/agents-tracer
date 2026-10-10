@@ -1,0 +1,1 @@
+{"agentType":"workflow-subagent","description":"Plan tests for CartBadge","workflowPhase":"plan","spawnDepth":1,"requestShape":"foreground","requestNonInteractive":false}

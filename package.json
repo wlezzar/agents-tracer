@@ -1,0 +1,44 @@
+{
+  "name": "agents-tracer",
+  "version": "0.1.0",
+  "description": "Where did the time go in a coding-agent session? Rebuilds a timeline from local transcripts and charges every moment to what was pending.",
+  "private": true,
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wlezzar/agents-tracer.git"
+  },
+  "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "agents-tracer": "dist/cli/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "typecheck": "tsc -p tsconfig.json && tsc -p src/viewer/client/tsconfig.json && tsc -p test/e2e/tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:e2e": "pnpm --silent build && vitest run --config vitest.e2e.config.ts",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build",
+    "parity": "pnpm --silent build && node scripts/parity.ts",
+    "tracer": "pnpm --silent build && node dist/cli/main.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.1",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.12.0",
+    "playwright": "1.63.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  }
+}
