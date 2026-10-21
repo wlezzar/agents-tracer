@@ -32,6 +32,7 @@ import type {
   ModelRequest,
   Shape,
   Thread,
+  ThreadGroup,
   ThreadShape,
   ThreadStats,
   ToolBlock,
@@ -137,6 +138,7 @@ interface ThreadInfo {
   readonly agentType: string | null;
   readonly phase: string | null;
   readonly background: boolean;
+  readonly group: string | null;
 }
 
 /** A turn being filled. */
@@ -394,6 +396,7 @@ function thread(
     ...info,
     start: a.start ?? null,
     end: a.end ?? null,
+    segments: a.segments,
     usageKnown: known,
     stats,
     shapes: [...used.values()],
@@ -409,8 +412,14 @@ export function buildConversation(analysis: SessionAnalysis): Conversation {
   // An agent's id -> the thread and the tool call that launched it; a later thread's wins, as the
   // analysis's parent does.
   const launchers = new Map<string, { thread: string; call: string }>();
+  // A group's id -> the thread and the tool call that started it, the first.
+  const starters = new Map<string, { thread: string; call: string }>();
   for (const [thread, a] of [[MAIN, main] as const, ...agents.map((x) => [x.agent.id, x.analysis] as const)])
-    for (const run of a.tools) if (run.launches.agentId) launchers.set(run.launches.agentId, { thread, call: run.id });
+    for (const run of a.tools) {
+      if (run.launches.agentId) launchers.set(run.launches.agentId, { thread, call: run.id });
+      const group = run.launches.groupId;
+      if (group !== undefined && !starters.has(group)) starters.set(group, { thread, call: run.id });
+    }
 
   const shapes = new Map<string, Shape>();
   for (const a of [main, ...agents.map((x) => x.analysis)])
@@ -421,7 +430,15 @@ export function buildConversation(analysis: SessionAnalysis): Conversation {
     thread(
       MAIN,
       main,
-      { label: 'Main session', parent: null, launcher: null, agentType: null, phase: null, background: false },
+      {
+        label: 'Main session',
+        parent: null,
+        launcher: null,
+        agentType: null,
+        phase: null,
+        background: false,
+        group: null,
+      },
       ids,
       shapes,
     ),
@@ -439,12 +456,33 @@ export function buildConversation(analysis: SessionAnalysis): Conversation {
             agentType: agent.agentType ?? null,
             phase: agent.phase ?? null,
             background: agent.background,
+            group: agent.group,
           },
           ids,
           shapes,
         );
       }),
   ];
+  const groupStart = new Map<string, number>();
+  for (const t of threads)
+    if (t.group !== null) groupStart.set(t.group, Math.min(groupStart.get(t.group) ?? Infinity, t.start ?? Infinity));
+  const groups = [...groupStart]
+    .sort((x, y) => x[1] - y[1])
+    .map(([id]): ThreadGroup => {
+      const g = session.groups.find((x) => x.id === id);
+      const starter = starters.get(id);
+      return {
+        id,
+        label: g?.label ?? id,
+        kind: g?.kind ?? '',
+        status: g?.status ?? null,
+        ms: g?.durationMs ?? null,
+        tokens: g?.totalTokens ?? null,
+        toolCalls: g?.totalToolCalls ?? null,
+        parent: starter?.thread ?? null,
+        launcher: starter?.call ?? null,
+      };
+    });
   return {
     session: {
       id: main.transcript.id,
@@ -454,6 +492,7 @@ export function buildConversation(analysis: SessionAnalysis): Conversation {
     },
     shellLabel: session.shellToolName ?? 'Shell',
     threads,
+    groups,
     // Only the shapes a thread used, since only those are shown.
     shapes: [...shapes.values()].filter((s) => threads.some((t) => t.shapes.some((x) => x.id === s.id))),
   };

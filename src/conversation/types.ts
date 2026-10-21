@@ -1,4 +1,4 @@
-import type { TurnKind } from '../analysis/types.js';
+import type { Segment, TurnKind } from '../analysis/types.js';
 import type { ContextSource, Permission, ToolCategory } from '../model/index.js';
 
 // A session's conversation as the conversation page and the Markdown export read it: a thread per
@@ -6,7 +6,7 @@ import type { ContextSource, Permission, ToolCategory } from '../model/index.js'
 // the calls that asked for them and the timing from the analysis. Plain data, so that the view
 // embeds it as JSON as it is.
 
-export type { ContextSource, Permission, ToolCategory, TurnKind };
+export type { ContextSource, Permission, Segment, ToolCategory, TurnKind };
 
 /** A session's conversation: the main transcript's thread first, then the agents' by start. */
 export interface Conversation {
@@ -21,8 +21,25 @@ export interface Conversation {
   /** The name of the agent's shell tool; `Shell` when it has none. */
   readonly shellLabel: string;
   readonly threads: readonly Thread[];
+  /** The groups of agents the session ran, such as workflow runs, by their first agent's start. */
+  readonly groups: readonly ThreadGroup[];
   /** The system prompts and tools the threads' model calls were sent with, each once, when the agent recorded them. */
   readonly shapes: readonly Shape[];
+}
+
+/** A group of agents that ran together, such as a workflow run; a field is null where its summary has none. */
+export interface ThreadGroup {
+  readonly id: string;
+  /** How to name it, such as `Workflow build-feature`, and what the agent calls such a group, such as `Workflow`. */
+  readonly label: string;
+  readonly kind: string;
+  readonly status: string | null;
+  readonly ms: number | null;
+  readonly tokens: number | null;
+  readonly toolCalls: number | null;
+  /** The thread whose tool call started it, and that call's id; null when no call did. */
+  readonly parent: string | null;
+  readonly launcher: string | null;
 }
 
 /** A system prompt and tools that model calls were sent with, with their sizes estimated (`estimateTokens`). */
@@ -73,9 +90,13 @@ export interface Thread {
   readonly agentType: string | null;
   readonly phase: string | null;
   readonly background: boolean;
+  /** The id of the {@link ThreadGroup} it ran in; null for the main thread and an agent on its own. */
+  readonly group: string | null;
   /** Its first and last events' times; null for a transcript without events. */
   readonly start: number | null;
   readonly end: number | null;
+  /** What was pending, end to end: the analysis's segments, as the timeline's state track has them. */
+  readonly segments: readonly Segment[];
   /** Whether its token counts were recorded (the analysis's `usageKnown`); its output tokens are null otherwise. */
   readonly usageKnown: boolean;
   readonly stats: ThreadStats;
