@@ -51,7 +51,47 @@ export interface ResponseEntry {
   readonly error: boolean;
   readonly stop: StopReason | null;
   readonly usage?: Usage;
+  /** What the call was sent with besides the messages, when the agent recorded its request. */
+  readonly request?: RequestInfo;
   readonly blocks: readonly ResponseBlock[];
+}
+
+/** A model call's request, besides its messages: the settings it was sent with, and its shape's id. */
+export interface RequestInfo {
+  /** The {@link RequestShape.id} of the system prompt and tools it was sent with. */
+  readonly shape?: string;
+  /** The model the request named, which may differ from the one that answered. */
+  readonly model?: string;
+  /** How much effort the model was asked for, such as `high`. */
+  readonly effort?: string;
+  readonly maxTokens?: number;
+  /** How the model was asked to reason, such as `adaptive`. */
+  readonly thinking?: string;
+}
+
+/**
+ * The parts of a model request besides the messages: the system prompt's blocks and the tools'
+ * definitions. Calls sent with the same ones share a shape; the adapter puts each transcript's in
+ * `Transcript.requestShapes` when it reads them.
+ */
+export interface RequestShape {
+  /** Its id, which a {@link RequestInfo.shape} refers to: the same id for the same system prompt and tools. */
+  readonly id: string;
+  /** When the agent first recorded it. */
+  readonly ts: number;
+  /** The system prompt's blocks, in order. */
+  readonly system: readonly string[];
+  readonly tools: readonly ToolDefinition[];
+}
+
+/** A tool as the model was told of it. */
+export interface ToolDefinition {
+  readonly name: string;
+  readonly description: string;
+  /** Its input schema, as pretty-printed JSON. */
+  readonly schema: string;
+  /** Sent to be loaded only when the model looks for it, so that it does not fill the context until then. */
+  readonly deferred: boolean;
 }
 
 /** A content block of a response. */
@@ -147,4 +187,6 @@ export interface NoticeEntry {
   readonly ts: number;
   readonly level: 'info' | 'warning' | 'error';
   readonly text: string;
+  /** The person interrupted the agent. */
+  readonly interrupt?: boolean;
 }

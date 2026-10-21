@@ -51,6 +51,8 @@ export interface ToolDescription {
    * every background task whose `backgroundIds` (see `ToolResultEvent`) include one of them ends.
    */
   readonly stops?: readonly string[];
+  /** For a `file` call, the file it reads or writes, as its input names it. */
+  readonly file?: { readonly path: string; readonly access: 'read' | 'write' };
 }
 
 /** A tool call the model asked for, as one of a response's tool calls. */

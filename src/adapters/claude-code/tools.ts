@@ -57,7 +57,15 @@ export function describeTool(
       ...(Boolean(input['run_in_background']) && { runsInBackground: true }),
     }),
     ...(category === 'task-control' && { stops: stopsOf(input) }),
+    ...fileOf(name, input),
   };
+}
+
+/** The file a file tool's call reads or writes. */
+function fileOf(name: string, input: Readonly<Record<string, unknown>>): Pick<ToolDescription, 'file'> {
+  if (categoryOf(name) !== 'file') return {};
+  const path = input['file_path'] ?? input['notebook_path'];
+  return typeof path === 'string' && path ? { file: { path, access: name === 'Read' ? 'read' : 'write' } } : {};
 }
 
 /** The task ids a `TaskStop` call stops. */

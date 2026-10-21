@@ -4,7 +4,7 @@ import { basename, dirname, join, relative } from 'node:path';
 import type { LoadOptions, ResolveOptions, SessionSummary, Transcript } from '../../model/index.js';
 import { isRecord, jsText, numberOr, parseJsonLines, stringOr } from '../../util/index.js';
 import { classify, textOf } from './classify.js';
-import { conversationOf } from './conversation.js';
+import { conversationOf, requestShapesOf } from './conversation.js';
 
 // Where Claude Code keeps a project's transcripts, and how they are found: the prototype's
 // readJsonl, listSessions, resolve, findSubagents, and workflowSummary.
@@ -38,7 +38,10 @@ export function readTranscript(file: string, options: LoadOptions = {}): Transcr
     compactions,
     ...(cwd !== undefined && { cwd }),
     ...(title !== undefined && { title }),
-    ...(options.conversation === true && { conversation: conversationOf(records, cwd, options) }),
+    ...(options.conversation === true && {
+      conversation: conversationOf(records, cwd, options),
+      requestShapes: requestShapesOf(records),
+    }),
   };
 }
 

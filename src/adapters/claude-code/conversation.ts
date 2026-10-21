@@ -5,9 +5,12 @@ import type {
   ConversationEntry,
   LoadOptions,
   Permission,
+  RequestInfo,
+  RequestShape,
   ResponseBlock,
   ResponseEntry,
   ResultEntry,
+  ToolDefinition,
 } from '../../model/index.js';
 import { isRecord, jsText, looseText, numberOr, stringOr } from '../../util/index.js';
 import { COMMAND_NAME, hasOrigins, messageIdOf, SUMMARY, textOf, toolCallOf, usageOf } from './classify.js';
@@ -141,11 +144,73 @@ function partsOf(content: unknown): { readonly texts: string[]; readonly images:
   };
 }
 
+/** How the model was asked to reason: the request's thinking type, with its budget when it set one. */
+function thinkingOf(thinking: unknown): string | undefined {
+  if (!isRecord(thinking)) return undefined;
+  const type = stringOr(thinking['type']);
+  const budget = numberOr(thinking['budget_tokens']);
+  return type === undefined ? undefined : budget === undefined ? type : `${type}, ${budget} tokens`;
+}
+
+/** The `api-request` records' settings, by the request's id, which an assistant record's `requestRef` names. */
+function requestsOf(records: readonly Record<string, unknown>[]): Map<string, RequestInfo> {
+  const requests = new Map<string, RequestInfo>();
+  for (const r of records) {
+    if (r['type'] !== 'api-request') continue;
+    const id = stringOr(r['id']);
+    if (id === undefined) continue;
+    const params = isRecord(r['params']) ? r['params'] : {};
+    const output = isRecord(params['output_config']) ? params['output_config'] : {};
+    const shape = stringOr(r['shapeHash']);
+    const model = stringOr(params['model']);
+    const effort = stringOr(output['effort']);
+    const maxTokens = numberOr(params['max_tokens']);
+    const thinking = thinkingOf(params['thinking']);
+    requests.set(id, {
+      ...(shape !== undefined && { shape }),
+      ...(model !== undefined && { model }),
+      ...(effort !== undefined && { effort }),
+      ...(maxTokens !== undefined && { maxTokens }),
+      ...(thinking !== undefined && { thinking }),
+    });
+  }
+  return requests;
+}
+
+/**
+ * The system prompts and tools a transcript's model calls were sent with: its `api-request-shape`
+ * records, one per shape, in file order.
+ */
+export function requestShapesOf(records: readonly unknown[]): RequestShape[] {
+  const shapes = new Map<string, RequestShape>();
+  for (const r of records) {
+    if (!isRecord(r) || r['type'] !== 'api-request-shape') continue;
+    const id = stringOr(r['shapeHash']);
+    const shape = isRecord(r['shape']) ? r['shape'] : {};
+    if (id === undefined || shapes.has(id)) continue;
+    const system = Array.isArray(shape['system']) ? shape['system'] : [];
+    const tools = Array.isArray(shape['tools']) ? shape['tools'] : [];
+    shapes.set(id, {
+      id,
+      ts: Date.parse(jsText(r['timestamp'])),
+      system: system.flatMap((b) => (isRecord(b) && typeof b['text'] === 'string' ? [b['text']] : [])),
+      tools: tools.filter(isRecord).map((t): ToolDefinition => ({
+        name: stringOr(t['name']) ?? '',
+        description: stringOr(t['description']) ?? '',
+        schema: JSON.stringify(t['input_schema'] ?? {}, null, 2),
+        deferred: t['defer_loading'] === true,
+      })),
+    });
+  }
+  return [...shapes.values()];
+}
+
 function responseOf(
   r: Record<string, unknown>,
   ts: number,
   cwd: string | undefined,
   options: LoadOptions,
+  requests: ReadonlyMap<string, RequestInfo>,
 ): ResponseEntry {
   const m = isRecord(r['message']) ? r['message'] : {};
   const content = m['content'];
@@ -174,6 +239,8 @@ function responseOf(
   });
   const model = stringOr(m['model']);
   const usage = usageOf(m['usage']);
+  const ref = stringOr(r['requestRef']);
+  const request = ref === undefined ? undefined : requests.get(ref);
   return {
     kind: 'response',
     ts,
@@ -183,6 +250,7 @@ function responseOf(
     error: r['isApiErrorMessage'] === true,
     stop: stringOr(m['stop_reason']) ?? null,
     ...(usage !== undefined && { usage }),
+    ...(request !== undefined && { request }),
     blocks,
   };
 }
@@ -244,6 +312,7 @@ export function conversationOf(
 ): ConversationEntry[] {
   const recs = records.filter(isRecord);
   const hasOrigin = hasOrigins(recs);
+  const requests = requestsOf(recs);
   const entries: ConversationEntry[] = [];
   // The compaction whose summary has not landed yet, by its index in entries.
   let pending: number | undefined;
@@ -257,7 +326,7 @@ export function conversationOf(
     const type = r['type'];
 
     if (type === 'assistant') {
-      entries.push(responseOf(r, ts, cwd, options));
+      entries.push(responseOf(r, ts, cwd, options, requests));
       continue;
     }
     if (type === 'attachment') {
@@ -336,7 +405,7 @@ export function conversationOf(
       else entries.push({ kind: 'compaction', ts, summary: text });
       pending = undefined;
     } else if (text.startsWith('[Request interrupted'))
-      entries.push({ kind: 'notice', ts, level: 'warning', text: text.replace(/^\[|\]$/g, '') });
+      entries.push({ kind: 'notice', ts, level: 'warning', text: text.replace(/^\[|\]$/g, ''), interrupt: true });
     else if (originKind === 'human') prompt('you', own);
     else if (originKind === 'task-notification' || text.startsWith('<task-notification>')) prompt('task', own);
     else if (origin) prompt('you', own, jsText(originKind));

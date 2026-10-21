@@ -1,4 +1,4 @@
-import type { ConversationEntry } from './conversation.js';
+import type { ConversationEntry, RequestShape } from './conversation.js';
 import type { TraceEvent } from './events.js';
 
 /**
@@ -34,6 +34,11 @@ export interface Transcript {
    * adapter reads it; absent otherwise.
    */
   readonly conversation?: readonly ConversationEntry[];
+  /**
+   * The system prompts and tools its model calls were sent with, in file order, when
+   * `LoadOptions.conversation` asked for the conversation and the agent recorded them; absent otherwise.
+   */
+  readonly requestShapes?: readonly RequestShape[];
 }
 
 /** A subagent's transcript, as part of the session that started it. */

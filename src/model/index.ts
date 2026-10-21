@@ -10,9 +10,12 @@ export type {
   NoticeEntry,
   Permission,
   PromptEntry,
+  RequestInfo,
+  RequestShape,
   ResponseBlock,
   ResponseEntry,
   ResultEntry,
+  ToolDefinition,
 } from './conversation.js';
 export type {
   BackgroundDoneEvent,
