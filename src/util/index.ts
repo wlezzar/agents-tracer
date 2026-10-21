@@ -4,5 +4,5 @@
 export { fmt, kTok, pct, two } from './format.js';
 export { isRecord, jsText, looseText, numberOr, parseJsonLines, stringOr } from './json.js';
 export { SUBCOMMAND_TOOLS, commandKey, shellKey, type ShellKeyOptions } from './shell.js';
-export { clip, indent, oneLine, printable, table, type Align, type TableCell } from './text.js';
+export { clip, estimateTokens, indent, oneLine, printable, table, type Align, type TableCell } from './text.js';
 export { clock, day, spansDays } from './time.js';

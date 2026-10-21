@@ -269,8 +269,49 @@ pre {
 .cv-cross { stroke: var(--axis); stroke-width: 1; }
 .cv-dot, .cv-peak { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
 .cv-peak-label { position: absolute; top: 0; font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cv-body { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); gap: 12px; padding: 0 20px 40px; align-items: start; }
-@media (max-width: 900px) { .cv-body { grid-template-columns: minmax(0, 1fr); } .cv-outline { position: static; max-height: 240px; } }
+.cv-body { display: grid; grid-template-columns: minmax(180px, 250px) minmax(0, 1fr) minmax(260px, 340px); grid-template-areas: "outline stream findings"; gap: 12px; padding: 0 20px 40px; align-items: start; }
+.cv-outline { grid-area: outline; }
+.cv-stream { grid-area: stream; }
+.cv-findings { grid-area: findings; }
+@media (max-width: 1280px) { .cv-body { grid-template-columns: minmax(180px, 250px) minmax(0, 1fr); grid-template-areas: "outline findings" "outline stream"; } .cv-findings { position: static; max-height: 320px; } }
+@media (max-width: 900px) { .cv-body { grid-template-columns: minmax(0, 1fr); grid-template-areas: "findings" "outline" "stream"; } .cv-outline { position: static; max-height: 240px; } }
+.cv-threadbar .spacer { flex: 1; }
+.cv-findings { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; padding: 4px 0 8px; font-size: 12.5px; }
+.cv-findings-head { display: flex; gap: 8px; align-items: baseline; padding: 4px 10px 6px; font-size: 12px; }
+.cv-findings-head .t { font-weight: 600; color: var(--text-primary); font-size: 13px; }
+.cv-findings-head select { margin-left: auto; font-size: 12px; }
+.cv-findings-thread { padding: 8px 10px 2px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.cv-findings-empty { padding: 4px 10px; }
+.cv-finding { border-top: 1px solid var(--grid); }
+.cv-finding > summary { display: flex; gap: 6px; align-items: baseline; padding: 6px 10px; cursor: pointer; list-style: none; }
+.cv-finding > summary::-webkit-details-marker { display: none; }
+.cv-finding > summary:hover { background: var(--hover); }
+.cv-finding > summary .t { flex: 1; min-width: 0; }
+.cv-finding > summary .meta { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cv-finding[open] > summary { background: var(--wash); }
+.cv-finding .d { margin: 4px 10px 6px; color: var(--text-secondary); }
+.cv-sev { flex: none; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; padding: 0 5px; border-radius: 3px; border: 1px solid var(--axis); color: var(--text-secondary); }
+.cv-sev.high { border-color: var(--critical); color: var(--critical); }
+.cv-sev.low { border-style: dashed; color: var(--muted); }
+.cv-places { display: flex; flex-direction: column; padding: 0 10px 8px; }
+.cv-places a { padding: 2px 4px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.cv-places a:hover { background: var(--hover); text-decoration: none; }
+.cv-places a.on { background: var(--wash); }
+.cv-places .n { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; }
+.cv-step { display: flex; gap: 8px; align-items: center; padding: 0 10px 6px; }
+.cv-step button { font-size: 12px; white-space: nowrap; }
+.cv-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 92vw); z-index: 20; background: var(--page); border-left: 1px solid var(--border); box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.cv-drawer[hidden] { display: none; }
+.cv-drawer-head { display: flex; gap: 10px; align-items: baseline; padding: 12px 16px; border-bottom: 1px solid var(--grid); flex-wrap: wrap; }
+.cv-drawer-head h2 { font-size: 15px; margin: 0; }
+.cv-drawer-head .spacer { flex: 1; }
+.cv-drawer-body { overflow: auto; padding: 8px 16px 32px; }
+.cv-drawer-body h3 { font-size: 13px; margin: 16px 0 6px; }
+.cv-drawer-body table { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.cv-drawer-body td, .cv-drawer-body th { padding: 3px 12px 3px 0; text-align: left; }
+.cv-drawer-body th { color: var(--text-secondary); font-weight: 500; }
+.cv-drawer-body .cv-card { margin: 4px 0; }
+.cv-budget { font-size: 12.5px; color: var(--text-secondary); margin: 6px 0; }
 .cv-outline { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; padding: 4px 0 8px; }
 .cv-outline-head { padding: 4px 10px 6px; font-size: 12px; }
 .cv-outline a { display: flex; gap: 6px; align-items: baseline; padding: 3px 10px; color: var(--text-primary); font-size: 12px; }
@@ -414,6 +455,8 @@ mark { background: rgba(235, 104, 52, 0.32); color: inherit; border-radius: 2px;
   <div class="cv-threadbar">
     <label>Thread <select id="cv-thread" aria-label="Thread"></select></label>
     <span id="cv-launch" class="muted"></span>
+    <span class="spacer"></span>
+    <button id="cv-setup-open" type="button" hidden>System prompt and tools</button>
   </div>
   <section id="cv-stats" class="stats" aria-label="Thread statistics"></section>
   <div id="cv-chart" class="cv-chart" hidden></div>
@@ -425,11 +468,21 @@ mark { background: rgba(235, 104, 52, 0.32); color: inherit; border-radius: 2px;
     <button id="cv-collapse" type="button">Collapse all</button>
     <span id="cv-count" class="muted"></span>
   </div>
-  <div class="hint">Click a row to open it · J / K: next or previous turn · F: next failed or refused call · / to search · click the chart to go to a model call</div>
+  <div class="hint">Click a row to open it · J / K: next or previous turn · F: next failed or refused call · N: next place of the open finding · / to search · click the chart to go to a model call</div>
   <div class="cv-body">
     <nav id="cv-outline" class="pane cv-outline" aria-label="Turns"></nav>
     <main id="cv-stream" class="cv-stream"></main>
+    <aside id="cv-findings" class="pane cv-findings" aria-label="Findings"></aside>
   </div>
+  <aside id="cv-setup" class="cv-drawer" hidden aria-label="System prompt and tools">
+    <div class="cv-drawer-head">
+      <h2>System prompt and tools</h2>
+      <span id="cv-setup-sub" class="muted"></span>
+      <span class="spacer"></span>
+      <button id="cv-setup-close" type="button" title="Close (Esc)">Close</button>
+    </div>
+    <div id="cv-setup-body" class="cv-drawer-body"></div>
+  </aside>
 </div>
 <div id="tip" class="tip" hidden></div>
 <script id="trace-data" type="application/json">"__TRACE_DATA__"</script>

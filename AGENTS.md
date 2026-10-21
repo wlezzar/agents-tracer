@@ -32,7 +32,7 @@ src/
   util/         pure helpers: durations, token counts, local clock and day, oneLine, table, shellKey
   adapters/     registry.ts, and one directory per adapter (claude-code/)
   analysis/     the timing state machine and aggregates over the model
-  conversation/ each transcript's conversation in turns, and its Markdown export
+  conversation/ each transcript's conversation in turns, its findings, and its Markdown export
   report/       the text report
   view/         the view data the viewer reads, its builder, and renderHtml
   viewer/       template.html (markup and CSS) and client/ (the browser TypeScript)

@@ -42,6 +42,9 @@ Transcript options:
                           head and tail; 0 keeps all (default: ${MAX_OUTPUT})
   --turn <n>              only turn <n>, and the agents it launched
   --no-subagents          leave out the agents' conversations
+  --no-findings           leave out the findings: what looks worth improving in the harness
+  --setup                 write the system prompt and tools each thread was sent with, in full
+                          (default: one line for each, when the agent recorded them)
   --out <file>            write it to a file instead of standard output
 
 Serve options:

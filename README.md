@@ -28,7 +28,7 @@ To have it on your path, put `agents-tracer` where your shell looks, pointing at
 agents-tracer list
 agents-tracer report <session> [--timeline] [--turn <n>] [--top <n>] [--no-subagents] [--min-idle <seconds>]
 agents-tracer html <session> [--out <file>] [--conversation]
-agents-tracer transcript <session> [--context] [--max-output <n>] [--turn <n>] [--no-subagents] [--out <file>]
+agents-tracer transcript <session> [--context] [--max-output <n>] [--turn <n>] [--no-subagents] [--no-findings] [--setup] [--out <file>]
 agents-tracer serve [--port <n>]
 ```
 
@@ -147,12 +147,14 @@ The page shows one thread at a time, the session's or one of its agents' (pick i
 - **The context chart**: the tokens each model call read, call after call, with a line where the context was compacted. Hover for a call's numbers; click to go to it.
 - **The turns**, with an outline beside them. Each turn shows the prompt (or the task's report, or the command), then each model call with its model, duration, context, and what that grew by since the call before, and its blocks: the reasoning (its text when the agent recorded it; Claude Code mostly records only that the model reasoned, and for how long), the replies, and the tool calls. A tool call is one row with its duration, status, output size, and who allowed or refused it when that was you or a rule; open it for its input and output, with copy buttons. What the harness added between them (instruction files, memory, reminders, hooks' output, skills, listings of tools) is one dashed row per stretch, with each item's kind, what it is, and its size; open it for the text the model saw.
 - **Filters**: everything, the prompts and replies only, tool calls, shell commands, what failed, was interrupted, or was refused, the harness's context, the recorded reasoning, or what was slower than 10s, and a search through every text, outputs included, with its matches marked. _Harness context_ hides or shows what the harness added.
+- **Findings**, beside the turns: what looks worth improving in the harness, most severe first, each with why it matters, the tokens it cost when that is known, and every place it happened. Open one and click a place, or press N, to go to it. They are leads, not verdicts: failed calls made again unchanged, interrupts, API errors, refused calls, failed edits, the prompt cache rebuilt (without a pause, or after one long enough for it to lapse), the system prompt or tools changing mid-thread, files read again unchanged, large tool outputs, the same harness text added again and again, compactions, jumps in the context, heavy harness items, tools never called, and slow tool calls. Pick _All threads_ to see the agents' too.
+- **The system prompt and tools** the thread's model calls were sent with, when the agent recorded them (Claude Code does in its newer versions): the settings each call asked for (model, effort, maximum tokens, reasoning), the system prompt's blocks and every tool's definition with their estimated sizes, largest first, the tools the thread never called, and what changed between versions.
 
-J and K go to the next and previous turn, F to the next failed or refused call, `/` to the search.
+J and K go to the next and previous turn, F to the next failed or refused call, N to the next place of the open finding, `/` to the search, Escape closes the system prompt and tools.
 
 ### transcript
 
-The same conversation as Markdown, on standard output or in a file (`--out <file>`): a header with the session's numbers, then each thread's turns. Prompts and replies are quoted, inputs and outputs fenced, and every model call names its context and what it grew by, which makes it something an agent can read to find what in the setup cost the session time or context.
+The same conversation as Markdown, on standard output or in a file (`--out <file>`): a header with the session's numbers, the findings with where each happened, then each thread's turns, after a line on what its model calls were sent with. Prompts and replies are quoted, inputs and outputs fenced, and every model call names its context and what it grew by, which makes it something an agent can read to find what in the setup cost the session time or context.
 
 ````console
 $ agents-tracer transcript 5e1f --turn 3 --no-subagents
@@ -180,7 +182,8 @@ pnpm exec playwright test
 
 - `--context` writes what the harness added in full; by default each item is one line with its kind, what it is, and its size.
 - `--max-output <n>` keeps at most `n` characters of each input, output, reasoning, and context item, its head and its tail (3000 by default); `--max-output 0` keeps everything.
-- `--turn <n>` writes only turn `n` of the session, with the agents it launched; `--no-subagents` leaves the agents out.
+- `--turn <n>` writes only turn `n` of the session, with the agents it launched, and the findings in it; `--no-subagents` leaves the agents out.
+- `--no-findings` leaves the findings out; `--setup` writes each thread's system prompt and tool definitions in full, each version once.
 
 ### serve
 

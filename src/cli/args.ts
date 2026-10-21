@@ -27,6 +27,8 @@ const OPTIONS = {
   conversation: { type: 'boolean' },
   context: { type: 'boolean' },
   'max-output': { type: 'string' },
+  'no-findings': { type: 'boolean' },
+  setup: { type: 'boolean' },
 } as const;
 
 type OptionName = keyof typeof OPTIONS;
@@ -37,7 +39,7 @@ const COMMANDS = {
   list: [],
   report: ['timeline', 'turn', 'top', 'no-subagents', 'min-idle'],
   html: ['out', 'conversation'],
-  transcript: ['out', 'context', 'max-output', 'no-subagents', 'turn'],
+  transcript: ['out', 'context', 'max-output', 'no-subagents', 'turn', 'no-findings', 'setup'],
   serve: ['port'],
 } as const satisfies Record<string, readonly OptionName[]>;
 
@@ -87,6 +89,10 @@ export type Command =
       readonly maxOutput: number;
       readonly subagents: boolean;
       readonly turn?: number;
+      /** List what looks worth improving first. */
+      readonly findings: boolean;
+      /** Write the system prompt and the tools' definitions in full. */
+      readonly setup: boolean;
     }
   | { readonly name: 'serve'; readonly global: GlobalOptions; readonly port: number };
 
@@ -234,6 +240,8 @@ export function parseCommand(argv: readonly string[]): Command {
         maxOutput: parsed('max-output', (raw, v) => wholeNumber(raw, v, 0)) ?? MAX_OUTPUT,
         subagents: !flag('no-subagents'),
         ...(turn !== undefined && { turn }),
+        findings: !flag('no-findings'),
+        setup: flag('setup'),
       };
     }
     case 'serve':

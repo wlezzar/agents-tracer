@@ -10,8 +10,10 @@ import {
   type SessionAnalysis,
   type TranscriptAnalysis,
 } from '../analysis/index.js';
+import { estimateTokens } from '../util/index.js';
 import type {
   ConversationEntry,
+  RequestShape,
   ResponseBlock,
   ResponseEntry,
   ResponseEvent,
@@ -27,23 +29,21 @@ import type {
   ConversationItem,
   ConversationTurn,
   ModelItem,
+  ModelRequest,
+  Shape,
   Thread,
+  ThreadShape,
   ThreadStats,
   ToolBlock,
   ToolStatus,
 } from './types.js';
+import { findingsOf } from './findings.js';
 
 // A session's conversation from its analysis: each transcript's conversation entries in file
 // order, cut into the analysis's turns, with each model call's records merged, each tool call's
 // result beside it, and the timing and token counts the analysis has for them.
 
-/**
- * A text's size in tokens, estimated at four characters a token: enough to compare what fills the
- * context, not to count it. A model call's context is the count the agent recorded.
- */
-export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
+export { estimateTokens };
 
 /**
  * A tool call's preview without the purpose it may start with (whole, or cut short with an
@@ -117,7 +117,7 @@ function fromEvents(events: readonly TraceEvent[]): ConversationEntry[] {
       case 'compaction_done':
         return [{ kind: 'compaction', ts: e.ts, summary: '' }];
       case 'interrupt':
-        return [{ kind: 'notice', ts: e.ts, level: 'warning', text: 'Interrupted' }];
+        return [{ kind: 'notice', ts: e.ts, level: 'warning', text: 'Interrupted', interrupt: true }];
       case 'background_done':
         return [];
     }
@@ -147,7 +147,29 @@ interface Draft {
   readonly items: ConversationItem[];
 }
 
-function thread(id: string, a: TranscriptAnalysis, info: ThreadInfo, agents: ReadonlySet<string>): Thread {
+/** A shape with its sizes estimated. */
+function shapeOf(s: RequestShape): Shape {
+  const system = s.system.map((text) => ({ text, tokens: estimateTokens(text) }));
+  const tools = s.tools.map((t) => ({
+    ...t,
+    tokens: estimateTokens(`${t.name}\n${t.description}\n${t.schema}`),
+  }));
+  return {
+    id: s.id,
+    system,
+    tools,
+    systemTokens: system.reduce((sum, b) => sum + b.tokens, 0),
+    toolTokens: tools.reduce((sum, t) => sum + (t.deferred ? 0 : t.tokens), 0),
+  };
+}
+
+function thread(
+  id: string,
+  a: TranscriptAnalysis,
+  info: ThreadInfo,
+  agents: ReadonlySet<string>,
+  shapes: ReadonlyMap<string, Shape>,
+): Thread {
   const entries = entriesOf(a.transcript);
   const known = usageKnown(a.calls);
   const calls = new Map(a.calls.map((c) => [c.messageId, c]));
@@ -196,6 +218,7 @@ function thread(id: string, a: TranscriptAnalysis, info: ThreadInfo, agents: Rea
       tokens: estimateTokens(output),
       permission: result?.permission ?? null,
       agent: agent !== undefined && agents.has(agent) ? agent : null,
+      file: call.desc.file ?? null,
     };
   };
 
@@ -219,6 +242,17 @@ function thread(id: string, a: TranscriptAnalysis, info: ThreadInfo, agents: Rea
         }
       }),
     );
+    const req = list.find((e) => e.request !== undefined)?.request;
+    const request: ModelRequest | null =
+      req === undefined
+        ? null
+        : {
+            shape: req.shape ?? null,
+            model: req.model ?? null,
+            effort: req.effort ?? null,
+            maxTokens: req.maxTokens ?? null,
+            thinking: req.thinking ?? null,
+          };
     return {
       type: 'model',
       id: first.messageId,
@@ -232,6 +266,9 @@ function thread(id: string, a: TranscriptAnalysis, info: ThreadInfo, agents: Rea
       stop: call?.stop ?? list[list.length - 1]?.stop ?? null,
       context: usage === undefined ? null : usage.input + usage.cacheRead + usage.cacheWrite,
       out: usage === undefined || !known ? null : usage.output,
+      cacheRead: usage === undefined ? null : usage.cacheRead,
+      cacheWrite: usage === undefined ? null : usage.cacheWrite,
+      request,
       blocks,
     };
   };
@@ -300,7 +337,7 @@ function thread(id: string, a: TranscriptAnalysis, info: ThreadInfo, agents: Rea
         });
         break;
       case 'notice':
-        add({ type: 'notice', ts: e.ts, level: e.level, text: e.text });
+        add({ type: 'notice', ts: e.ts, level: e.level, text: e.text, interrupt: e.interrupt === true });
         break;
     }
   }
@@ -343,15 +380,26 @@ function thread(id: string, a: TranscriptAnalysis, info: ThreadInfo, agents: Rea
     contextTokens: contexts.reduce((sum, c) => sum + c.tokens, 0),
     compactions: items.filter((i) => i.type === 'compaction').length,
   };
-  return {
+  const used = new Map<string, ThreadShape>();
+  for (const i of items)
+    if (i.type === 'model' && i.request?.shape != null && shapes.has(i.request.shape)) {
+      const at = used.get(i.request.shape);
+      used.set(
+        i.request.shape,
+        at ? { ...at, calls: at.calls + 1 } : { id: i.request.shape, calls: 1, first: i.id, ts: i.ts },
+      );
+    }
+  const t: Omit<Thread, 'findings'> = {
     id,
     ...info,
     start: a.start ?? null,
     end: a.end ?? null,
     usageKnown: known,
     stats,
+    shapes: [...used.values()],
     turns,
   };
+  return { ...t, findings: findingsOf(t, shapes) };
 }
 
 /** The conversation of an analyzed session: the main transcript's thread, then each agent's by start. */
@@ -364,6 +412,10 @@ export function buildConversation(analysis: SessionAnalysis): Conversation {
   for (const [thread, a] of [[MAIN, main] as const, ...agents.map((x) => [x.agent.id, x.analysis] as const)])
     for (const run of a.tools) if (run.launches.agentId) launchers.set(run.launches.agentId, { thread, call: run.id });
 
+  const shapes = new Map<string, Shape>();
+  for (const a of [main, ...agents.map((x) => x.analysis)])
+    for (const s of a.transcript.requestShapes ?? []) if (!shapes.has(s.id)) shapes.set(s.id, shapeOf(s));
+
   const startOf = (a: TranscriptAnalysis): number => a.start ?? NaN;
   const threads: Thread[] = [
     thread(
@@ -371,6 +423,7 @@ export function buildConversation(analysis: SessionAnalysis): Conversation {
       main,
       { label: 'Main session', parent: null, launcher: null, agentType: null, phase: null, background: false },
       ids,
+      shapes,
     ),
     ...[...agents]
       .sort((x, y) => startOf(x.analysis) - startOf(y.analysis))
@@ -388,6 +441,7 @@ export function buildConversation(analysis: SessionAnalysis): Conversation {
             background: agent.background,
           },
           ids,
+          shapes,
         );
       }),
   ];
@@ -400,6 +454,8 @@ export function buildConversation(analysis: SessionAnalysis): Conversation {
     },
     shellLabel: session.shellToolName ?? 'Shell',
     threads,
+    // Only the shapes a thread used, since only those are shown.
+    shapes: [...shapes.values()].filter((s) => threads.some((t) => t.shapes.some((x) => x.id === s.id))),
   };
 }
 

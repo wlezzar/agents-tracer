@@ -10,6 +10,14 @@ export function oneLine(s: string | null | undefined, n = 80): string {
   return t.length > n ? `${t.slice(0, n - 1)}…` : t;
 }
 
+/**
+ * A text's size in tokens, estimated at four characters a token: enough to compare what fills the
+ * context, not to count it.
+ */
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
 /** Keeps the head and the tail of a long text, `n` characters in all: a command's failures are usually at its end. */
 export function clip(text: string, n: number): string {
   if (text.length <= n) return text;

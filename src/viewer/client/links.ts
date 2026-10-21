@@ -1,11 +1,13 @@
 // Links between a session's timeline and its conversation: a page's hash names a lane (a thread,
 // by the same id) and a tool call or a model call in it, as `#lane=main&tool=<id>` or
-// `#lane=<agent>&model=<message id>`.
+// `#lane=<agent>&model=<message id>`; the conversation's also names any item of a turn by the
+// turn's number and the item's index in it, as `#lane=main&item=3.5`.
 
 /** What a link points at. */
 export type Target =
   | { readonly lane: string; readonly tool: string }
   | { readonly lane: string; readonly model: string }
+  | { readonly lane: string; readonly item: string }
   | { readonly lane: string };
 
 /** The hash that points at `target`. */
@@ -22,5 +24,7 @@ export function parseTarget(hash: string): Target | null {
   if (tool) return { lane, tool };
   const model = params.get('model');
   if (model) return { lane, model };
+  const item = params.get('item');
+  if (item && /^\d+\.\d+$/.test(item)) return { lane, item };
   return { lane };
 }

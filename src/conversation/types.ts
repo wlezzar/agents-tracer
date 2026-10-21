@@ -21,6 +21,45 @@ export interface Conversation {
   /** The name of the agent's shell tool; `Shell` when it has none. */
   readonly shellLabel: string;
   readonly threads: readonly Thread[];
+  /** The system prompts and tools the threads' model calls were sent with, each once, when the agent recorded them. */
+  readonly shapes: readonly Shape[];
+}
+
+/** A system prompt and tools that model calls were sent with, with their sizes estimated (`estimateTokens`). */
+export interface Shape {
+  readonly id: string;
+  readonly system: readonly SystemBlock[];
+  readonly tools: readonly ToolDef[];
+  /** The system prompt's estimated tokens, and the tools' that are not deferred. */
+  readonly systemTokens: number;
+  readonly toolTokens: number;
+}
+
+/** A block of a system prompt. */
+export interface SystemBlock {
+  readonly text: string;
+  readonly tokens: number;
+}
+
+/** A tool as the model was told of it. */
+export interface ToolDef {
+  readonly name: string;
+  readonly description: string;
+  /** Its input schema, as pretty-printed JSON. */
+  readonly schema: string;
+  /** Loaded only when the model looks for it, so that it does not fill the context until then. */
+  readonly deferred: boolean;
+  /** Its definition's estimated tokens: its name, description, and schema. */
+  readonly tokens: number;
+}
+
+/** A shape a thread's model calls were sent with: how many, and the first of them. */
+export interface ThreadShape {
+  readonly id: string;
+  readonly calls: number;
+  /** The first call's message id and time. */
+  readonly first: string;
+  readonly ts: number;
 }
 
 /** One transcript's conversation. */
@@ -40,6 +79,10 @@ export interface Thread {
   /** Whether its token counts were recorded (the analysis's `usageKnown`); its output tokens are null otherwise. */
   readonly usageKnown: boolean;
   readonly stats: ThreadStats;
+  /** The shapes its model calls were sent with, in the order it first used them; empty when not recorded. */
+  readonly shapes: readonly ThreadShape[];
+  /** What looks worth improving in it, most severe first (`findings`). */
+  readonly findings: readonly Finding[];
   /** Its turns; a turn numbered 0 first when anything came before the first prompt. */
   readonly turns: readonly ConversationTurn[];
 }
@@ -127,7 +170,21 @@ export interface ModelItem {
   readonly context: number | null;
   /** Its output tokens; null without usage, or when the thread's were not recorded. */
   readonly out: number | null;
+  /** Of its context, the tokens read from the prompt cache and written to it; null as `context` is. */
+  readonly cacheRead: number | null;
+  readonly cacheWrite: number | null;
+  /** What it was sent with besides the messages, when the agent recorded its request. */
+  readonly request: ModelRequest | null;
   readonly blocks: readonly ConversationBlock[];
+}
+
+/** A model call's request: its shape, and the settings it was sent with, each null when not recorded. */
+export interface ModelRequest {
+  readonly shape: string | null;
+  readonly model: string | null;
+  readonly effort: string | null;
+  readonly maxTokens: number | null;
+  readonly thinking: string | null;
 }
 
 export type ConversationBlock =
@@ -166,6 +223,8 @@ export interface ToolBlock {
   readonly permission: Permission | null;
   /** The thread of the agent it launched, when the session holds it. */
   readonly agent: string | null;
+  /** For a file tool, the file it read or wrote. */
+  readonly file: { readonly path: string; readonly access: 'read' | 'write' } | null;
 }
 
 /** A compaction of the context. */
@@ -184,6 +243,8 @@ export interface NoticeItem {
   readonly ts: number;
   readonly level: 'info' | 'warning' | 'error';
   readonly text: string;
+  /** The person interrupted the agent. */
+  readonly interrupt: boolean;
 }
 
 /** A result for no tool call the thread asked for. */
@@ -193,4 +254,71 @@ export interface ResultItem {
   readonly id: string;
   readonly output: string;
   readonly status: ToolStatus;
+}
+
+/**
+ * What a finding is about:
+ *
+ * - `retry`: a tool call that failed, made again unchanged.
+ * - `api-error`: an error from the model's API, or one the agent reported.
+ * - `failed-edit`: a file write or edit that failed.
+ * - `denied`: tool calls the agent's rules, its mode, or the person refused.
+ * - `interrupt`: the person interrupted the agent.
+ * - `cache-miss`: a model call that wrote again to the prompt cache what the call before it had cached, without a pause between them.
+ * - `cache-lapse`: the same, after a pause long enough for the cache to lapse.
+ * - `shape-change`: the system prompt or the tools changed between two model calls.
+ * - `repeated-read`: the same read of a file made again, the file unchanged in between.
+ * - `large-output`: a tool output large enough to fill much of the context.
+ * - `repeated-context`: the same harness text added again and again.
+ * - `compaction`: the context filled up and was compacted.
+ * - `context-jump`: the context grew by much in one step.
+ * - `heavy-context`: one harness item large enough to cost much of the context.
+ * - `unused-tools`: tools the model was told of and never called.
+ * - `slow`: a tool call that took minutes.
+ */
+export type FindingKind =
+  | 'retry'
+  | 'api-error'
+  | 'failed-edit'
+  | 'denied'
+  | 'interrupt'
+  | 'cache-miss'
+  | 'cache-lapse'
+  | 'shape-change'
+  | 'repeated-read'
+  | 'large-output'
+  | 'repeated-context'
+  | 'compaction'
+  | 'context-jump'
+  | 'heavy-context'
+  | 'unused-tools'
+  | 'slow';
+
+/** How much a finding likely costs: `high` first. */
+export type Severity = 'high' | 'medium' | 'low';
+
+/** Something in a thread that looks worth improving in the harness, and where it happened. */
+export interface Finding {
+  readonly kind: FindingKind;
+  readonly severity: Severity;
+  /** The thread it is in. */
+  readonly thread: string;
+  /** What happened, in one line. */
+  readonly title: string;
+  /** Why it matters, or what to look at. */
+  readonly detail: string;
+  /** The tokens it cost, estimated; null when it costs time or attention instead. */
+  readonly tokens: number | null;
+  /** Where it happened, in the thread's order; empty for a finding about the whole thread. */
+  readonly at: readonly FindingRef[];
+}
+
+/** A place in a thread: an item of a turn, and a tool call of it when the item is a model call. */
+export interface FindingRef {
+  /** The turn's number, and the item's index in its items. */
+  readonly turn: number;
+  readonly item: number;
+  readonly tool: string | null;
+  /** What is there, in a few words. */
+  readonly label: string;
 }

@@ -59,6 +59,11 @@ export function conversationView(conversation: Conversation, options: Conversati
   return {
     conversation: {
       ...conversation,
+      shapes: conversation.shapes.map((s) => ({
+        ...s,
+        system: s.system.map((b) => ({ ...b, text: clip(b.text, n) })),
+        tools: s.tools.map((d) => ({ ...d, description: clip(d.description, n), schema: clip(d.schema, n) })),
+      })),
       threads: conversation.threads.map((t) => ({
         ...t,
         turns: t.turns.map((turn) => ({ ...turn, items: turn.items.map((i) => clipItem(i, n)) })),

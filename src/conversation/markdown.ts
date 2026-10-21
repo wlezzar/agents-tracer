@@ -6,8 +6,10 @@ import type {
   ConversationBlock,
   ConversationItem,
   ConversationTurn,
+  Finding,
   ModelItem,
   Permission,
+  Shape,
   Thread,
   ToolBlock,
   ToolStatus,
@@ -28,7 +30,14 @@ export interface MarkdownOptions {
   readonly subagents?: boolean;
   /** Only this turn of the main thread, and the agents its tool calls launched. */
   readonly turn?: number;
+  /** List what looks worth improving before the threads; true by default. */
+  readonly findings?: boolean;
+  /** Write the system prompt and the tools' definitions each thread's model calls were sent with. */
+  readonly setup?: boolean;
 }
+
+/** The most places a finding lists. */
+const FINDING_PLACES = 10;
 
 /** The default of {@link MarkdownOptions.maxOutput}. */
 export const MAX_OUTPUT = 3000;
@@ -80,11 +89,20 @@ class Writer {
   private readonly time: (ts: number) => string;
   private readonly threads: ReadonlyMap<string, Thread>;
   private readonly cut: (text: string) => string;
+  private readonly shapes: ReadonlyMap<string, Shape>;
+  /** The shapes written in full, and the thread that wrote each. */
+  private readonly written = new Map<string, string>();
 
-  constructor(options: MarkdownOptions, time: (ts: number) => string, threads: ReadonlyMap<string, Thread>) {
+  constructor(
+    options: MarkdownOptions,
+    time: (ts: number) => string,
+    threads: ReadonlyMap<string, Thread>,
+    shapes: ReadonlyMap<string, Shape>,
+  ) {
     this.options = options;
     this.time = time;
     this.threads = threads;
+    this.shapes = shapes;
     const max = options.maxOutput ?? MAX_OUTPUT;
     this.cut = (text) => (max > 0 ? clip(text, max) : text);
   }
@@ -92,6 +110,92 @@ class Writer {
   /** A paragraph, set apart from the ones around it. */
   add(...paragraphs: string[]): void {
     for (const p of paragraphs) this.lines.push(p, '');
+  }
+
+  /** What looks worth improving in `threads`, in a turn when `turn` is given. */
+  findings(threads: readonly Thread[], turn: number | undefined): void {
+    const lists = threads.flatMap((t) => {
+      const list = t.findings.flatMap((f): Finding[] => {
+        if (turn === undefined || t.id !== 'main') return [f];
+        const at = f.at.filter((r) => r.turn === turn);
+        return at.length ? [{ ...f, at }] : [];
+      });
+      return list.length ? [{ t, list }] : [];
+    });
+    this.add('## Findings');
+    if (!lists.length) {
+      this.add('Nothing stood out.');
+      return;
+    }
+    this.add(
+      'Leads to read, not verdicts: patterns that often cost tokens, time, or attention, with where each happened (turn, and the tool call’s id).',
+    );
+    for (const { t, list } of lists) {
+      if (threads.length > 1) this.add(t.id === 'main' ? `### ${t.label}` : `### Agent: ${t.label} (\`${t.id}\`)`);
+      const lines = list.map((f) => {
+        const tokens = f.tokens === null ? '' : ` (~${kTok(f.tokens)} tokens)`;
+        const places = f.at.slice(0, FINDING_PLACES).map((r) => {
+          const where = r.turn === 0 ? 'Before the first prompt' : `Turn ${r.turn}`;
+          return `  - ${where} · ${r.label}${r.tool === null ? '' : ` (\`${r.tool}\`)`}`;
+        });
+        if (f.at.length > FINDING_PLACES) places.push(`  - and ${f.at.length - FINDING_PLACES} more`);
+        return [`- **${f.severity}** · ${f.title}${tokens}. ${f.detail}`, ...places].join('\n');
+      });
+      this.add(lines.join('\n'));
+    }
+  }
+
+  /** What a thread's model calls were sent with: their settings, and the system prompt and tools. */
+  private setup(t: Thread): void {
+    const settings = new Map<string, number>();
+    for (const turn of t.turns)
+      for (const i of turn.items)
+        if (i.type === 'model' && i.request !== null) {
+          const r = i.request;
+          const k = [
+            r.model,
+            r.effort !== null && `effort ${r.effort}`,
+            r.maxTokens !== null && `max ${r.maxTokens} tokens`,
+            r.thinking !== null && `thinking ${r.thinking}`,
+          ]
+            .filter((x) => typeof x === 'string' && x !== '')
+            .join(', ');
+          if (k) settings.set(k, (settings.get(k) ?? 0) + 1);
+        }
+    const lines = [...settings].map(([k, n]) => `- Sent with ${k} (${count(n, 'call')})`);
+    for (const used of t.shapes) {
+      const s = this.shapes.get(used.id);
+      if (s === undefined) continue;
+      const deferred = s.tools.filter((d) => d.deferred).length;
+      lines.push(
+        `- ${t.shapes.length > 1 ? `From ${this.time(used.ts)}, ${count(used.calls, 'call')}: s` : 'S'}ystem prompt ~${kTok(s.systemTokens)} tokens in ${count(s.system.length, 'block')}; ${count(s.tools.length - deferred, 'tool')} ~${kTok(s.toolTokens)} tokens${deferred ? ` (and ${deferred} deferred)` : ''}: ${s.tools
+          .filter((d) => !d.deferred)
+          .map((d) => d.name)
+          .join(', ')}`,
+      );
+    }
+    if (lines.length) this.add(lines.join('\n'));
+    if (!this.options.setup) return;
+    for (const used of t.shapes) {
+      const s = this.shapes.get(used.id);
+      if (s === undefined) continue;
+      const by = this.written.get(s.id);
+      if (by !== undefined) {
+        this.add(`The system prompt and tools from ${this.time(used.ts)} are the same as ${by}’s.`);
+        continue;
+      }
+      this.written.set(s.id, t.id === 'main' ? 'the main session' : `agent \`${t.id}\``);
+      this.add(`### System prompt and tools${t.shapes.length > 1 ? ` from ${this.time(used.ts)}` : ''}`);
+      s.system.forEach((b, i) => {
+        this.add(`#### System prompt, block ${i + 1} · ~${kTok(b.tokens)} tokens`, fence(this.cut(b.text)));
+      });
+      for (const d of [...s.tools].sort((x, y) => y.tokens - x.tokens))
+        this.add(
+          `#### Tool ${d.name} · ~${kTok(d.tokens)} tokens${d.deferred ? ' · deferred' : ''}`,
+          quote(this.cut(d.description) || '(no description)'),
+          fence(this.cut(d.schema), 'json'),
+        );
+    }
   }
 
   thread(t: Thread, turns: readonly ConversationTurn[]): void {
@@ -110,6 +214,7 @@ class Writer {
         `Launched by ${t.launcher === null ? 'a tool call' : `tool call \`${t.launcher}\``} of ${parent === undefined ? `\`${t.parent}\`` : parent.id === 'main' ? 'the main session' : `agent \`${parent.id}\``}.`,
       );
     }
+    this.setup(t);
     let previous: number | null = null;
     for (const turn of turns) {
       this.add(
@@ -277,7 +382,12 @@ export function markdown(conversation: Conversation, options: MarkdownOptions = 
   const { session, threads } = conversation;
   const [main] = threads;
   const multiDay = main?.start != null && main.end != null && spansDays(main.start, main.end);
-  const writer = new Writer(options, (ts) => clock(ts, multiDay), new Map(threads.map((t) => [t.id, t])));
+  const writer = new Writer(
+    options,
+    (ts) => clock(ts, multiDay),
+    new Map(threads.map((t) => [t.id, t])),
+    new Map(conversation.shapes.map((s) => [s.id, s])),
+  );
   writer.add(`# ${session.title ?? `Session ${session.id}`}`);
   if (main !== undefined) {
     const s = main.stats;
@@ -300,6 +410,7 @@ export function markdown(conversation: Conversation, options: MarkdownOptions = 
     );
   }
   const shown = chosen(conversation, options);
+  if (options.findings !== false) writer.findings(shown, options.turn);
   for (const t of shown) {
     const turns = t === main && options.turn !== undefined ? t.turns.filter((x) => x.n === options.turn) : t.turns;
     writer.thread(t, turns);

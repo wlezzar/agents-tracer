@@ -185,6 +185,8 @@ export async function run(argv: readonly string[], io: CliIo, adapters: AdapterR
           maxOutput: command.maxOutput,
           subagents: command.subagents,
           ...(command.turn !== undefined && { turn: command.turn }),
+          findings: command.findings,
+          setup: command.setup,
         });
         if (command.out === undefined) print(text.replace(/\n$/, ''));
         else writeOut(io, command.out, printable(text), print);

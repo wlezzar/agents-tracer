@@ -112,6 +112,7 @@ export function toolBlock(id: string, extra: Partial<ToolBlock> = {}): ToolBlock
     tokens: 0,
     permission: null,
     agent: null,
+    file: null,
     ...extra,
   };
 }
@@ -131,6 +132,9 @@ export function modelItem(id: string, blocks: readonly ConversationBlock[], extr
     stop: 'end_turn',
     context: null,
     out: null,
+    cacheRead: null,
+    cacheWrite: null,
+    request: null,
     blocks,
     ...extra,
   };

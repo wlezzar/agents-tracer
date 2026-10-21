@@ -4,10 +4,13 @@ import type {
   ConversationData,
   ConversationItem,
   ConversationTurn,
+  Finding,
+  FindingRef,
   ModelItem,
   NoticeItem,
   PromptItem,
   ResultItem,
+  Shape,
   Thread,
   ToolBlock,
 } from '../../view/types.js';
@@ -26,15 +29,21 @@ import {
   type ConversationFilter,
   type FilterState,
 } from './conversationFilter.js';
+import { calledTools, modelCalls, settingsOf, shapeChanges } from './conversationSetup.js';
 import { byId, copyButton, el, nodes, present, queryAll, type Child } from './dom.js';
 import { fmt, kTok, oneLine, spansDays, stamp } from './format.js';
 import { parseTarget, targetHash, type Target } from './links.js';
 import { applyTheme, cycleTheme } from './theme.js';
 
 // The conversation page: one thread at a time (the main session's or an agent's), turn by turn,
-// with an outline of the turns, a chart of the context, and filters. A tool call, a reasoning, the
-// harness's context, or a compaction's summary is one row until it is opened; what an opened row
-// shows is built when it is first opened, so that a long thread stays quick.
+// with an outline of the turns, a chart of the context, filters, the findings (what looks worth
+// improving, with where each happened), and a drawer with the system prompt and tools the thread's
+// model calls were sent with. A tool call, a reasoning, the harness's context, or a compaction's
+// summary is one row until it is opened; what an opened row shows is built when it is first
+// opened, so that a long thread stays quick.
+
+/** How many places of a finding the rail lists. */
+const PLACES_SHOWN = 100;
 
 /** How many rows "Expand all" opens at most. */
 const EXPAND_LIMIT = 400;
@@ -93,7 +102,14 @@ export class ConversationPage {
   readonly data: ConversationData;
   readonly threads: readonly Thread[];
   readonly byId: ReadonlyMap<string, Thread>;
+  readonly shapes: ReadonlyMap<string, Shape>;
   readonly multiDay: boolean;
+  /** Whether the findings rail shows every thread's findings, or the shown thread's. */
+  allFindings = false;
+  /** The finding whose places N steps through, and the place it is at. */
+  private stepping: { readonly finding: Finding; at: number } | null = null;
+  /** The shape the drawer shows, when it is open. */
+  private setupShape: string | null = null;
   thread: Thread;
   state: FilterState = { filter: 'all', query: '', harness: true };
   /** The keys of the opened rows. */
@@ -110,6 +126,11 @@ export class ConversationPage {
     count: byId('cv-count', HTMLSpanElement),
     outline: byId('cv-outline', HTMLElement),
     stream: byId('cv-stream', HTMLElement),
+    findings: byId('cv-findings', HTMLElement),
+    setup: byId('cv-setup', HTMLElement),
+    setupBody: byId('cv-setup-body', HTMLDivElement),
+    setupSub: byId('cv-setup-sub', HTMLSpanElement),
+    setupOpen: byId('cv-setup-open', HTMLButtonElement),
     tip: byId('tip', HTMLDivElement),
   };
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -119,6 +140,7 @@ export class ConversationPage {
     this.data = data;
     this.threads = data.conversation.threads;
     this.byId = new Map(this.threads.map((t) => [t.id, t]));
+    this.shapes = new Map(data.conversation.shapes.map((s) => [s.id, s]));
     const [main] = this.threads;
     if (main === undefined) throw new Error('the conversation has no thread');
     this.thread = main;
@@ -151,15 +173,17 @@ export class ConversationPage {
     });
 
     els.threadSelect.replaceChildren(
-      ...this.threads.map((t) =>
-        el(
+      ...this.threads.map((t) => {
+        const serious = t.findings.filter((f) => f.severity !== 'low').length;
+        return el(
           'option',
           { value: t.id },
-          t.id === 'main'
+          (t.id === 'main'
             ? `${t.label} · ${count(t.stats.calls, 'model call')}`
-            : `${t.parent !== null && t.parent !== 'main' ? '↳ ' : ''}${t.phase ? `${t.phase} · ` : ''}${t.label}${t.agentType ? ` (${t.agentType})` : ''}`,
-        ),
-      ),
+            : `${t.parent !== null && t.parent !== 'main' ? '↳ ' : ''}${t.phase ? `${t.phase} · ` : ''}${t.label}${t.agentType ? ` (${t.agentType})` : ''}`) +
+            (serious ? ` · ${count(serious, 'finding')}` : ''),
+        );
+      }),
     );
     els.threadSelect.disabled = this.threads.length < 2;
     els.threadSelect.addEventListener('change', () => {
@@ -189,6 +213,12 @@ export class ConversationPage {
       this.open.clear();
       this.renderStream();
     });
+    els.setupOpen.addEventListener('click', () => {
+      this.openSetup(null);
+    });
+    byId('cv-setup-close', HTMLButtonElement).addEventListener('click', () => {
+      this.closeSetup();
+    });
     this.bindKeys();
     new ResizeObserver(() => {
       this.renderChart();
@@ -214,6 +244,9 @@ export class ConversationPage {
       this.renderLaunch();
       this.renderChart();
       this.renderStream();
+      this.renderFindings();
+      this.renderSetupButton();
+      if (this.setupShape !== null) this.openSetup(null);
       window.scrollTo({ top: 0 });
     }
     const hash = targetHash(target ?? { lane: t.id });
@@ -233,30 +266,54 @@ export class ConversationPage {
     if (t) this.show(t, target);
   }
 
-  /** Opens and shows the call `target` points at, clearing a filter that hides it. */
+  /** Opens and shows what `target` points at, clearing a filter that hides it. */
   reveal(target: Target): void {
-    const selector =
+    const find = (): Element | null =>
       'tool' in target
-        ? `[data-tool="${CSS.escape(target.tool)}"]`
+        ? this.els.stream.querySelector(`[data-tool="${CSS.escape(target.tool)}"]`)
         : 'model' in target
-          ? `[data-model="${CSS.escape(target.model)}"]`
-          : null;
-    if (selector === null) return;
-    let node = this.els.stream.querySelector(selector);
+          ? this.els.stream.querySelector(`[data-model="${CSS.escape(target.model)}"]`)
+          : 'item' in target
+            ? this.findItem(target.item)
+            : null;
+    if (!('tool' in target || 'model' in target || 'item' in target)) return;
+    let node = find();
     if (node === null && !showsAll(this.state)) {
       this.els.q.value = '';
       this.els.filter.value = 'all';
       this.els.harness.checked = true;
       this.state = { filter: 'all', query: '', harness: true };
       this.renderStream();
-      node = this.els.stream.querySelector(selector);
+      node = find();
     }
     if (!(node instanceof HTMLElement)) return;
     if ('tool' in target) {
       this.open.add(`tool:${target.tool}`);
       this.fill(node);
+    } else if ('item' in target) {
+      // A harness item's row, or the row of a card such as a compaction's, opens.
+      const unit = node.classList.contains('cv-unit') ? node : node.querySelector(':scope > .cv-unit');
+      if (unit instanceof HTMLElement && !node.classList.contains('cv-model')) this.fill(unit);
     }
     this.flash(node);
+  }
+
+  /** The element of a turn's item, `<turn>.<index>`; a harness item's group is opened to find it. */
+  private findItem(item: string): Element | null {
+    const selector = `[data-item="${CSS.escape(item)}"]`;
+    const found = this.els.stream.querySelector(selector);
+    if (found !== null) return found;
+    const [turn, index] = item.split('.').map(Number);
+    for (const group of queryAll('[data-from]', HTMLElement, this.els.stream))
+      if (
+        Number(group.getAttribute('data-turn')) === turn &&
+        Number(group.getAttribute('data-from')) <= (index ?? -1) &&
+        (index ?? Infinity) <= Number(group.getAttribute('data-to'))
+      ) {
+        this.fill(group);
+        return this.els.stream.querySelector(selector);
+      }
+    return null;
   }
 
   private flash(node: HTMLElement): void {
@@ -445,22 +502,24 @@ export class ConversationPage {
     );
     const body: HTMLElement[] = [];
     let previous = before;
-    let harness: ContextItem[] = [];
+    let harness: { readonly item: ContextItem; readonly index: number }[] = [];
     const flush = (): void => {
       if (harness.length) body.push(this.harnessCard(turn, harness));
       harness = [];
     };
-    turn.items.forEach((item) => {
+    turn.items.forEach((item, index) => {
       const change =
         item.type === 'model' && item.context !== null && previous !== null ? item.context - previous : null;
       if (item.type === 'model' && item.context !== null) previous = item.context;
       if (!itemShown(item, this.state)) return;
       if (item.type === 'context') {
-        harness.push(item);
+        harness.push({ item, index });
         return;
       }
       flush();
-      body.push(this.itemCard(item, change));
+      const card = this.itemCard(item, change);
+      card.setAttribute('data-item', `${turn.n}.${index}`);
+      body.push(card);
     });
     flush();
     return el('section', { class: 'cv-turn', id: `cv-turn-${turn.n}`, 'data-turn': turn.n }, head, ...body);
@@ -624,7 +683,12 @@ export class ConversationPage {
         ? null
         : el(
             'span',
-            { title: 'Tokens the call read: input, cache reads, and cache writes' },
+            {
+              title:
+                m.cacheRead === null || m.cacheWrite === null
+                  ? 'Tokens the call read: input, cache reads, and cache writes'
+                  : `Tokens the call read: ${m.cacheRead.toLocaleString()} from the cache, ${m.cacheWrite.toLocaleString()} written to it, ${(m.context - m.cacheRead - m.cacheWrite).toLocaleString()} other input`,
+            },
             `context ${kTok(m.context)}`,
             change === null ? null : el('span', { class: big ? 'cv-grew' : '' }, ` (${delta(change)})`),
           ),
@@ -777,9 +841,12 @@ export class ConversationPage {
     ];
   }
 
-  private harnessCard(turn: ConversationTurn, items: readonly ContextItem[]): HTMLElement {
-    const first = items[0];
-    const at = first === undefined ? 0 : turn.items.indexOf(first);
+  private harnessCard(
+    turn: ConversationTurn,
+    placed: readonly { readonly item: ContextItem; readonly index: number }[],
+  ): HTMLElement {
+    const items = placed.map((p) => p.item);
+    const at = placed[0]?.index ?? 0;
     const tokens = items.reduce((sum, i) => sum + i.tokens, 0);
     const sources = new Map<string, number>();
     for (const i of items) sources.set(i.source, (sources.get(i.source) ?? 0) + 1);
@@ -794,19 +861,26 @@ export class ConversationPage {
           el('span', { class: 'meta' }, `${count(items.length, 'item')} · ~${kTok(tokens)} tokens`),
         ],
         () =>
-          items.map((item, i) =>
+          placed.map(({ item, index }) =>
             this.row(
-              `context:${turn.n}:${at + i}`,
+              `context:${turn.n}:${index}`,
               [
                 el('span', { class: 'chip' }, item.source),
                 el('span', { class: 'what' }, item.label),
                 el('span', { class: 'meta' }, `${this.stamp(item.ts)} · ~${kTok(item.tokens)}`),
               ],
               () => this.textBlock('What the model saw', item.text),
-              { hidden: item.text },
+              { hidden: item.text, attrs: { 'data-item': `${turn.n}.${index}` } },
             ),
           ),
-        { hidden: items.map((i) => `${i.label}\n${i.text}`).join('\n') },
+        {
+          hidden: items.map((i) => `${i.label}\n${i.text}`).join('\n'),
+          attrs: {
+            'data-turn': String(turn.n),
+            'data-from': String(at),
+            'data-to': String(placed[placed.length - 1]?.index ?? at),
+          },
+        },
       ),
     );
     return card;
@@ -860,11 +934,346 @@ export class ConversationPage {
     );
   }
 
+  // ---------- findings ----------
+
+  /** The findings rail: the shown thread's findings, or every thread's. */
+  private renderFindings(): void {
+    const others = this.threads.filter((t) => t !== this.thread && t.findings.length > 0);
+    if (!others.length) this.allFindings = false;
+    const threads = this.allFindings ? this.threads.filter((t) => t.findings.length > 0) : [this.thread];
+    const total = this.threads.reduce((n, t) => n + t.findings.length, 0);
+    let scope: HTMLSelectElement | null = null;
+    if (others.length) {
+      scope = el(
+        'select',
+        { 'aria-label': 'Findings of' },
+        el('option', { value: 'thread' }, 'This thread'),
+        el('option', { value: 'all' }, `All threads (${total})`),
+      );
+      scope.value = this.allFindings ? 'all' : 'thread';
+      scope.addEventListener('change', () => {
+        this.allFindings = scope?.value === 'all';
+        this.renderFindings();
+      });
+    }
+    const shown = threads.reduce((n, t) => n + t.findings.length, 0);
+    const parts: Child[] = [
+      el(
+        'div',
+        { class: 'cv-findings-head muted' },
+        el('span', { class: 't' }, 'Findings'),
+        el('span', {}, String(shown)),
+        scope,
+      ),
+    ];
+    if (!shown)
+      parts.push(
+        el(
+          'div',
+          { class: 'cv-findings-empty muted' },
+          'Nothing stood out: no retries, refusals, repeated reads or text, large outputs, or cache rebuilds.',
+        ),
+      );
+    for (const t of threads) {
+      if (this.allFindings && t.findings.length)
+        parts.push(
+          el(
+            'div',
+            { class: 'cv-findings-thread' },
+            t === this.thread
+              ? t.label
+              : el(
+                  'a',
+                  {
+                    href: targetHash({ lane: t.id }),
+                    onclick: (e) => {
+                      e.preventDefault();
+                      this.show(t, { lane: t.id });
+                    },
+                  },
+                  t.label,
+                ),
+          ),
+        );
+      for (const f of t.findings) parts.push(this.findingCard(t, f));
+    }
+    this.els.findings.replaceChildren(...nodes(parts));
+  }
+
+  private findingCard(t: Thread, f: Finding): HTMLElement {
+    const card = el('details', { class: 'cv-finding' });
+    const step = (dir: 1 | -1): void => {
+      this.stepping = this.stepping?.finding === f ? this.stepping : { finding: f, at: dir > 0 ? -1 : 0 };
+      this.stepPlace(dir);
+    };
+    const places = f.at.slice(0, PLACES_SHOWN).map((r, i) =>
+      el(
+        'a',
+        {
+          href: targetHash(
+            r.tool === null ? { lane: t.id, item: `${r.turn}.${r.item}` } : { lane: t.id, tool: r.tool },
+          ),
+          'data-place': i,
+          title: r.label,
+          onclick: (e) => {
+            e.preventDefault();
+            this.stepping = { finding: f, at: i };
+            this.goToPlace(t, r);
+          },
+        },
+        el('span', { class: 'n' }, r.turn === 0 ? '·' : `T${r.turn}`),
+        r.label,
+      ),
+    );
+    const setup = f.kind === 'unused-tools' || f.kind === 'shape-change';
+    card.append(
+      ...nodes([
+        el(
+          'summary',
+          {},
+          el('span', { class: `cv-sev ${f.severity}` }, f.severity),
+          el('span', { class: 't' }, f.title),
+          el(
+            'span',
+            { class: 'meta' },
+            f.tokens === null ? (f.at.length ? String(f.at.length) : '') : `~${kTok(f.tokens)}`,
+          ),
+        ),
+        el('p', { class: 'd' }, f.detail),
+        f.at.length > 1
+          ? el(
+              'div',
+              { class: 'cv-step' },
+              el(
+                'button',
+                {
+                  type: 'button',
+                  onclick: () => {
+                    step(-1);
+                  },
+                },
+                '‹ Previous',
+              ),
+              el(
+                'button',
+                {
+                  type: 'button',
+                  onclick: () => {
+                    step(1);
+                  },
+                },
+                'Next ›',
+              ),
+              el('span', { class: 'muted' }, `${count(f.at.length, 'place')} · N steps through them`),
+            )
+          : null,
+        places.length ? el('div', { class: 'cv-places' }, ...places) : null,
+        f.at.length > PLACES_SHOWN
+          ? el('div', { class: 'cv-findings-empty muted' }, `and ${f.at.length - PLACES_SHOWN} more`)
+          : null,
+        setup && t.shapes.length
+          ? el(
+              'div',
+              { class: 'cv-step' },
+              el(
+                'button',
+                {
+                  type: 'button',
+                  onclick: () => {
+                    if (t !== this.thread) this.show(t, { lane: t.id });
+                    this.openSetup(null);
+                  },
+                },
+                'Open the system prompt and tools',
+              ),
+            )
+          : null,
+      ]),
+    );
+    card.addEventListener('toggle', () => {
+      if (card.open) this.stepping = { finding: f, at: -1 };
+    });
+    return card;
+  }
+
+  /** Shows a place of a finding: its thread, then the item or the tool call. */
+  private goToPlace(t: Thread, r: FindingRef): void {
+    if (t !== this.thread) this.show(t);
+    this.reveal(r.tool === null ? { lane: t.id, item: `${r.turn}.${r.item}` } : { lane: t.id, tool: r.tool });
+    for (const a of queryAll('.cv-places a.on', HTMLAnchorElement, this.els.findings)) a.classList.remove('on');
+    const at = this.stepping?.finding.at.indexOf(r) ?? -1;
+    const card = [...queryAll('.cv-finding', HTMLDetailsElement, this.els.findings)].find((c) => c.open);
+    card?.querySelector(`[data-place="${at}"]`)?.classList.add('on');
+  }
+
+  /** Steps to the next (1) or previous (-1) place of the finding being stepped through, or of the first open one. */
+  private stepPlace(dir: 1 | -1): void {
+    if (this.stepping === null) {
+      const threads = this.allFindings ? this.threads : [this.thread];
+      const first = threads.flatMap((t) => t.findings).find((f) => f.at.length > 0);
+      if (first === undefined) return;
+      this.stepping = { finding: first, at: -1 };
+    }
+    const { finding } = this.stepping;
+    if (!finding.at.length) return;
+    const t = this.byId.get(finding.thread);
+    if (t === undefined) return;
+    const n = finding.at.length;
+    this.stepping.at = (((this.stepping.at + dir) % n) + n) % n;
+    const r = finding.at[this.stepping.at];
+    if (r !== undefined) this.goToPlace(t, r);
+  }
+
+  // ---------- the system prompt and tools ----------
+
+  private renderSetupButton(): void {
+    const t = this.thread;
+    const b = this.els.setupOpen;
+    const shapes = present(t.shapes.map((x) => this.shapes.get(x.id)));
+    b.hidden = !shapes.length;
+    const last = shapes[shapes.length - 1];
+    if (last !== undefined)
+      b.textContent = `System prompt and tools · ~${kTok(last.systemTokens + last.toolTokens)} tokens${shapes.length > 1 ? ` · ${shapes.length} versions` : ''}`;
+  }
+
+  private closeSetup(): void {
+    this.setupShape = null;
+    this.els.setup.hidden = true;
+  }
+
+  /** Opens the drawer on one of the shown thread's shapes, its last by default. */
+  private openSetup(id: string | null): void {
+    const t = this.thread;
+    const used = t.shapes.filter((x) => this.shapes.has(x.id));
+    const current = used.find((x) => x.id === id) ?? used[used.length - 1];
+    const shape = current === undefined ? undefined : this.shapes.get(current.id);
+    if (current === undefined || shape === undefined) {
+      this.closeSetup();
+      return;
+    }
+    this.setupShape = shape.id;
+    this.els.setup.hidden = false;
+    this.els.setupSub.textContent = t.label;
+    const index = used.indexOf(current);
+    const before = index > 0 ? used[index - 1] : undefined;
+    const previous = before === undefined ? undefined : this.shapes.get(before.id);
+    const called = calledTools(t);
+    const first = modelCalls(t).find((m) => m.id === current.first);
+    const deferred = shape.tools.filter((d) => d.deferred).length;
+    const unused = shape.tools.filter((d) => !d.deferred && !called.has(d.name));
+    const unusedTokens = unused.reduce((sum, d) => sum + d.tokens, 0);
+
+    const parts: Child[] = [];
+    const settings = settingsOf(t);
+    if (settings.length)
+      parts.push(
+        el('h3', {}, 'Request settings'),
+        el(
+          'table',
+          {},
+          el('tr', {}, el('th', {}, 'Sent with'), el('th', {}, 'Calls')),
+          ...settings.map((x) => el('tr', {}, el('td', {}, x.label), el('td', {}, String(x.calls)))),
+        ),
+      );
+    const recorded = settings.reduce((n, x) => n + x.calls, 0);
+    if (settings.length && recorded < t.stats.calls)
+      parts.push(
+        el(
+          'p',
+          { class: 'muted' },
+          `The agent recorded the requests of ${recorded} of the thread's ${count(t.stats.calls, 'model call')}.`,
+        ),
+      );
+    if (used.length > 1) {
+      const pick = el(
+        'select',
+        { 'aria-label': 'Version' },
+        ...used.map((x, i) =>
+          el('option', { value: x.id }, `Version ${i + 1} · from ${this.stamp(x.ts)} · ${count(x.calls, 'call')}`),
+        ),
+      );
+      pick.value = current.id;
+      pick.addEventListener('change', () => {
+        this.openSetup(pick.value);
+      });
+      parts.push(el('h3', {}, 'Version'), pick);
+      if (previous !== undefined) {
+        const changes = shapeChanges(previous, shape);
+        parts.push(
+          el(
+            'p',
+            { class: 'cv-budget' },
+            `Changed from version ${index}: ${changes.length ? changes.join('; ') : 'no difference in what is shown'}.`,
+          ),
+        );
+      }
+    }
+    parts.push(
+      el(
+        'p',
+        { class: 'cv-budget' },
+        `System prompt ~${kTok(shape.systemTokens)} tokens in ${count(shape.system.length, 'block')} · ${count(shape.tools.length - deferred, 'tool')} ~${kTok(shape.toolTokens)} tokens` +
+          (deferred ? ` (and ${deferred} deferred, loaded only when looked for)` : '') +
+          (first?.context != null
+            ? ` · together about ${Math.round((100 * (shape.systemTokens + shape.toolTokens)) / first.context)}% of the ${kTok(first.context)} tokens its first call read`
+            : '') +
+          (unused.length
+            ? ` · ${count(unused.length, 'tool')} never called in this thread, ~${kTok(unusedTokens)} tokens`
+            : ''),
+      ),
+      el('p', { class: 'muted' }, 'Sizes are estimated at four characters a token.'),
+      el('h3', {}, 'System prompt'),
+      el(
+        'div',
+        { class: 'cv-card' },
+        ...shape.system.map((b, i) =>
+          this.row(
+            `setup:${shape.id}:system:${i}`,
+            [
+              el('span', { class: 'name' }, `Block ${i + 1}`),
+              el('span', { class: 'what' }, oneLine(b.text, 140)),
+              el('span', { class: 'meta' }, `~${kTok(b.tokens)}`),
+            ],
+            () => this.textBlock('Text', b.text),
+            { hidden: b.text },
+          ),
+        ),
+      ),
+      el('h3', {}, 'Tools, largest first'),
+      el(
+        'div',
+        { class: 'cv-card' },
+        ...[...shape.tools]
+          .sort((x, y) => y.tokens - x.tokens)
+          .map((d) =>
+            this.row(
+              `setup:${shape.id}:tool:${d.name}`,
+              [
+                el('span', { class: 'cv-key tool' }),
+                el('span', { class: 'name' }, d.name),
+                el('span', { class: 'what' }, oneLine(d.description, 140)),
+                d.deferred ? el('span', { class: 'chip' }, 'deferred') : null,
+                !d.deferred && !called.has(d.name) ? el('span', { class: 'chip' }, 'never called') : null,
+                el('span', { class: 'meta' }, `~${kTok(d.tokens)}`),
+              ],
+              () => [...this.textBlock('Description', d.description), ...this.textBlock('Input schema', d.schema)],
+              { hidden: `${d.description}\n${d.schema}` },
+            ),
+          ),
+      ),
+    );
+    this.els.setupBody.replaceChildren(...nodes(parts));
+  }
+
   // ---------- keys ----------
 
   private bindKeys(): void {
     document.addEventListener('keydown', (e) => {
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
+      if (e.key === 'Escape' && this.setupShape !== null) {
+        this.closeSetup();
+        return;
+      }
       if (e.key === 'Escape' && e.target === this.els.q) {
         this.els.q.value = '';
         this.setState({ ...this.state, query: '' });
@@ -877,6 +1286,7 @@ export class ConversationPage {
         this.els.q.focus();
       } else if (e.key === 'j' || e.key === 'k') this.stepTurn(e.key === 'j' ? 1 : -1);
       else if (e.key === 'f') this.nextFailure();
+      else if (e.key === 'n') this.stepPlace(1);
     });
   }
 
