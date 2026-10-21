@@ -19,8 +19,11 @@ export function applyTheme(): void {
   const root = document.documentElement;
   if (theme === 'system') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', theme);
-  const button = document.getElementById('theme');
-  if (button) button.textContent = `Theme: ${theme}`;
+  // The timeline's button, and the conversation page's.
+  for (const id of ['theme', 'cv-theme']) {
+    const button = document.getElementById(id);
+    if (button) button.textContent = `Theme: ${theme}`;
+  }
   readColors();
   applied();
 }

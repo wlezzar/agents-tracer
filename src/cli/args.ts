@@ -1,5 +1,7 @@
 import { parseArgs } from 'node:util';
 
+import { MAX_OUTPUT } from '../conversation/index.js';
+
 // The command line, parsed into one command with its options checked: which command, which of the
 // options it takes, and values of the right kind. Every mistake is a UsageError, whose message is
 // one line.
@@ -22,6 +24,9 @@ const OPTIONS = {
   'min-idle': { type: 'string' },
   out: { type: 'string' },
   port: { type: 'string' },
+  conversation: { type: 'boolean' },
+  context: { type: 'boolean' },
+  'max-output': { type: 'string' },
 } as const;
 
 type OptionName = keyof typeof OPTIONS;
@@ -31,7 +36,8 @@ const GLOBAL: readonly OptionName[] = ['adapter', 'store', 'project', 'help', 'v
 const COMMANDS = {
   list: [],
   report: ['timeline', 'turn', 'top', 'no-subagents', 'min-idle'],
-  html: ['out'],
+  html: ['out', 'conversation'],
+  transcript: ['out', 'context', 'max-output', 'no-subagents', 'turn'],
   serve: ['port'],
 } as const satisfies Record<string, readonly OptionName[]>;
 
@@ -62,7 +68,26 @@ export type Command =
       /** Seconds. */
       readonly minIdle: number;
     }
-  | { readonly name: 'html'; readonly global: GlobalOptions; readonly session: string; readonly out?: string }
+  | {
+      readonly name: 'html';
+      readonly global: GlobalOptions;
+      readonly session: string;
+      readonly out?: string;
+      /** Write the conversation page rather than the timeline. */
+      readonly conversation: boolean;
+    }
+  | {
+      readonly name: 'transcript';
+      readonly global: GlobalOptions;
+      readonly session: string;
+      readonly out?: string;
+      /** Write the harness's context items in full. */
+      readonly context: boolean;
+      /** The most characters of each input, output, and context item; 0 keeps all. */
+      readonly maxOutput: number;
+      readonly subagents: boolean;
+      readonly turn?: number;
+    }
   | { readonly name: 'serve'; readonly global: GlobalOptions; readonly port: number };
 
 /** The port `serve` listens on by default. */
@@ -194,7 +219,22 @@ export function parseCommand(argv: readonly string[]): Command {
     case 'html': {
       const session = sessionOf(name, rest);
       const out = text('out');
-      return { name, global, session, ...(out !== undefined && { out }) };
+      return { name, global, session, ...(out !== undefined && { out }), conversation: flag('conversation') };
+    }
+    case 'transcript': {
+      const session = sessionOf(name, rest);
+      const out = text('out');
+      const turn = parsed('turn', (raw, v) => wholeNumber(raw, v, 1));
+      return {
+        name,
+        global,
+        session,
+        ...(out !== undefined && { out }),
+        context: flag('context'),
+        maxOutput: parsed('max-output', (raw, v) => wholeNumber(raw, v, 0)) ?? MAX_OUTPUT,
+        subagents: !flag('no-subagents'),
+        ...(turn !== undefined && { turn }),
+      };
     }
     case 'serve':
       noArguments(name, rest);

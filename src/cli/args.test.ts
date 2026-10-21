@@ -81,15 +81,64 @@ describe('parseCommand', () => {
   });
 
   it('reads html and serve', () => {
-    expect(parseCommand(['html', '5e1f'])).toEqual({ name: 'html', global: {}, session: '5e1f' });
-    expect(parseCommand(['html', '5e1f', '--out', 'x.html'])).toEqual({
+    expect(parseCommand(['html', '5e1f'])).toEqual({ name: 'html', global: {}, session: '5e1f', conversation: false });
+    expect(parseCommand(['html', '5e1f', '--out', 'x.html', '--conversation'])).toEqual({
       name: 'html',
       global: {},
       session: '5e1f',
       out: 'x.html',
+      conversation: true,
     });
     expect(parseCommand(['serve'])).toEqual({ name: 'serve', global: {}, port: 4390 });
     expect(parseCommand(['serve', '--port', '8080'])).toEqual({ name: 'serve', global: {}, port: 8080 });
+  });
+
+  it('reads transcript', () => {
+    expect(parseCommand(['transcript', '5e1f'])).toEqual({
+      name: 'transcript',
+      global: {},
+      session: '5e1f',
+      context: false,
+      maxOutput: 3000,
+      subagents: true,
+    });
+    expect(
+      parseCommand([
+        'transcript',
+        '5e1f',
+        '--context',
+        '--max-output',
+        '0',
+        '--no-subagents',
+        '--turn',
+        '2',
+        '--out',
+        'x.md',
+      ]),
+    ).toEqual({
+      name: 'transcript',
+      global: {},
+      session: '5e1f',
+      out: 'x.md',
+      context: true,
+      maxOutput: 0,
+      subagents: false,
+      turn: 2,
+    });
+  });
+
+  it.each([
+    [['transcript'], "transcript needs a session: its id, a prefix of its id, or a transcript's path"],
+    [
+      ['transcript', 'x', '--max-output', '-1'],
+      '--max-output needs a value; write --max-output=<value> for one that starts with -',
+    ],
+    [['transcript', 'x', '--max-output', '2.5'], '--max-output takes a whole number 0 or more, not "2.5"'],
+    [['transcript', 'x', '--timeline'], '--timeline does not apply to transcript'],
+    [['report', 'x', '--conversation'], '--conversation does not apply to report'],
+    [['html', 'x', '--context'], '--context does not apply to html'],
+  ])('refuses %j for transcript and html: %s', (argv, message) => {
+    expect(() => parseCommand(argv)).toThrow(message);
   });
 
   it.each([

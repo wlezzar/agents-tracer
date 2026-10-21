@@ -18,7 +18,8 @@ const layers = {
   'adapters/*': { imports: ['model', 'util'], node: true },
   analysis: { imports: ['model', 'util'], node: false },
   report: { imports: ['analysis', 'model', 'util'], node: false },
-  view: { imports: ['analysis', 'model', 'util'], node: true },
+  conversation: { imports: ['analysis', 'model', 'util'], node: false },
+  view: { imports: ['analysis', 'conversation', 'model', 'util'], node: true },
   // The browser client imports only the view's types; esbuild bundles it alone.
   'viewer/client': { imports: [{ layer: 'view', typeOnly: true }], node: false },
   server: { imports: ['view', 'adapters', 'model', 'util'], node: true },
@@ -110,7 +111,7 @@ export default defineConfig(
   },
   // The pure layers compute; reading files and printing is for the layers around them.
   {
-    files: ['src/{model,util,analysis,report}/**/*.ts'],
+    files: ['src/{model,util,analysis,report,conversation}/**/*.ts'],
     ignores: ['src/**/*.test.ts'],
     rules: {
       'no-restricted-globals': ['error', 'process', 'Buffer', 'console'],

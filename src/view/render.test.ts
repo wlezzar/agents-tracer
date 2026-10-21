@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { clip } from './build.js';
 import { DATA_PLACEHOLDER, renderHtml, viewerTemplate } from './render.js';
 import type { IndexData } from './types.js';
 
@@ -33,13 +32,5 @@ describe('viewerTemplate', () => {
   it('says to build when the viewer is not built beside the code', () => {
     // From src/, the built viewer would be src/viewer/viewer.html, which only dist/ has.
     expect(() => viewerTemplate()).toThrow(/^the viewer is not built: no .*viewer\.html; run pnpm build$/);
-  });
-});
-
-describe('clip', () => {
-  it('keeps a text that fits, and the head and tail of a longer one', () => {
-    expect(clip('short', 10)).toBe('short');
-    expect(clip('0123456789', 10)).toBe('0123456789');
-    expect(clip('0123456789abc', 5)).toBe('012\n\n… 8 characters left out …\n\nbc');
   });
 });

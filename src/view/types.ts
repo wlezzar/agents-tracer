@@ -1,8 +1,10 @@
 import type { Bucket, TurnKind } from '../analysis/types.js';
+import type { Conversation } from '../conversation/types.js';
 import type { ToolCategory } from '../model/index.js';
 
 // The client reads these through this module only.
 export type { Bucket, ToolCategory, TurnKind };
+export type * from '../conversation/types.js';
 
 // The JSON the viewer reads, embedded in its page by renderHtml. The builder (build.ts) writes it
 // and the browser client (src/viewer/client/) reads it, so both share these types.
@@ -10,11 +12,12 @@ export type { Bucket, ToolCategory, TurnKind };
 // The fields and values are the prototype's, so that its view data and this one compare equal;
 // the only additions are ViewData.toolCategories, ViewData.shellLabel, ToolSpan.cat, and
 // ViewGroup.kind, which let the client color, filter, and name things by category instead of by an
-// agent's tool names. Numbers the prototype computes as NaN (the wall time of a transcript
+// agent's tool names, and the links to the conversation page (ViewData.conversationHref,
+// IndexSession.conversationHref, and each span's id), which the prototype has not. Numbers the prototype computes as NaN (the wall time of a transcript
 // without events) are null, as JSON writes NaN.
 
-/** What a page of the viewer shows: one session, or the index of a store's sessions. */
-export type PageData = ViewData | IndexData;
+/** What a page of the viewer shows: one session's timeline, its conversation, or the index of a store's sessions. */
+export type PageData = ViewData | IndexData | ConversationData;
 
 /** One session: a lane per transcript, in groups. */
 export interface ViewData {
@@ -31,6 +34,8 @@ export interface ViewData {
   readonly toolCategories: Readonly<Record<string, ToolCategory>>;
   /** The name of the agent's shell tool, for the legend, the trace filter, and the breakdown; `Shell` when it has none. */
   readonly shellLabel: string;
+  /** Where the session's conversation page is, when the server serves it. */
+  readonly conversationHref?: string;
 }
 
 export interface ViewSession {
@@ -125,6 +130,8 @@ export interface ToolSpan {
   /** The number of the turn it was asked for in. */
   readonly turn: number | null;
   readonly cat: ToolCategory;
+  /** The tool call's id, which links to it in the conversation page. */
+  readonly id: string;
 }
 
 /** A model call, from its start to its last record. */
@@ -149,6 +156,8 @@ export interface ModelSpan {
   /** One line that says what it did. */
   readonly sum: string;
   readonly turn: number | null;
+  /** The message's id, which links to it in the conversation page. */
+  readonly id: string;
 }
 
 export interface ViewTurn {
@@ -211,4 +220,18 @@ export interface IndexSession {
   readonly first: string;
   /** Where the server serves the session's viewer; null for an id it cannot put in a URL. */
   readonly href: string | null;
+  /** Where the server serves the session's conversation; null for an id it cannot put in a URL. */
+  readonly conversationHref: string | null;
+}
+
+/** The conversation page of one session: what its transcripts say, turn by turn. */
+export interface ConversationData {
+  /** Its texts clipped to their head and tail (view/conversation.ts's `CONVERSATION_TEXT`). */
+  readonly conversation: Conversation;
+  /** When the data was built, epoch milliseconds. */
+  readonly generated: number;
+  /** True when the server serves the page, which then links back to the index. */
+  readonly serve?: true;
+  /** Where the session's timeline is, when the server serves it. */
+  readonly timelineHref?: string;
 }

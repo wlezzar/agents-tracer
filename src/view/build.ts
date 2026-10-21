@@ -13,7 +13,7 @@ import {
   type TranscriptAnalysis,
 } from '../analysis/index.js';
 import type { Session, ToolCategory } from '../model/index.js';
-import type { ShellKeyOptions } from '../util/index.js';
+import { clip, type ShellKeyOptions } from '../util/index.js';
 import type {
   ModelSpan,
   ToolSpan,
@@ -30,14 +30,6 @@ import type {
 
 /** The id of the group of agents that ran on their own, and its label. */
 const AGENTS_GROUP = 'agents';
-
-/** Keeps the head and the tail of a long text: a command's failures are usually at its end. */
-export function clip(text: string, n: number): string {
-  if (text.length <= n) return text;
-  const head = Math.ceil(n / 2);
-  const tail = n - head;
-  return `${text.slice(0, head)}\n\n… ${text.length - n} characters left out …\n\n${text.slice(text.length - tail)}`;
-}
 
 /** A number as JSON writes it: null for NaN and the infinities. */
 function finite(n: number): number | null {
@@ -82,6 +74,7 @@ function lane(id: string, a: TranscriptAnalysis, info: LaneInfo, shell: ShellKey
       run: tc.launches.groupId ?? null,
       turn: tc.turn?.n ?? null,
       cat: tc.desc.category,
+      id: tc.id,
     };
     spans.push(span);
   }
@@ -108,6 +101,7 @@ function lane(id: string, a: TranscriptAnalysis, info: LaneInfo, shell: ShellKey
       tools: [],
       sum: callSummary(c),
       turn: c.turn?.n ?? null,
+      id: c.messageId,
     };
     spans.push(span);
   }
@@ -180,6 +174,8 @@ export interface ViewOptions {
   readonly now?: number;
   /** More tools whose subcommand is part of a shell command's key (util's `shellKey`). */
   readonly subcommandTools?: readonly string[];
+  /** Where the session's conversation page is, which the page links to; the server's only. */
+  readonly conversationHref?: string;
 }
 
 /**
@@ -260,6 +256,7 @@ export function buildView(analysis: SessionAnalysis, options: ViewOptions = {}):
     ...(options.serve === true && { serve: true }),
     toolCategories,
     shellLabel: session.shellToolName ?? 'Shell',
+    ...(options.conversationHref !== undefined && { conversationHref: options.conversationHref }),
   };
 }
 

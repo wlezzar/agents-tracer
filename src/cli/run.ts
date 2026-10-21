@@ -3,11 +3,12 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 
 import { registry as shipped } from '../adapters/registry.js';
 import { analyzeSession } from '../analysis/index.js';
+import { buildConversation, markdown } from '../conversation/index.js';
 import type { Adapter, AdapterRegistry } from '../model/index.js';
 import { report, sessionList } from '../report/index.js';
 import { startServer } from '../server/index.js';
 import { isRecord, printable } from '../util/index.js';
-import { renderHtml, viewerTemplate, viewSession } from '../view/index.js';
+import { renderHtml, viewConversation, viewerTemplate, viewSession } from '../view/index.js';
 import { parseCommand, type GlobalOptions } from './args.js';
 import { shellOptions } from './env.js';
 import { usage, version } from './usage.js';
@@ -36,13 +37,22 @@ export interface CliIo {
 }
 
 /**
- * Where `html` writes a session's page by default: `agents-tracer/html/<id>.html` under
- * `$XDG_CACHE_HOME`, or under `~/.cache` when that is unset or not an absolute path.
+ * Where `html` writes a session's page by default: `agents-tracer/html/<id>.html` (its conversation,
+ * `<id>.conversation.html`) under `$XDG_CACHE_HOME`, or under `~/.cache` when that is unset or not an
+ * absolute path.
  */
-export function defaultHtmlPath(io: Pick<CliIo, 'env' | 'home'>, id: string): string {
+export function defaultHtmlPath(io: Pick<CliIo, 'env' | 'home'>, id: string, conversation = false): string {
   const xdg = io.env['XDG_CACHE_HOME'];
   const cache = xdg !== undefined && isAbsolute(xdg) ? xdg : join(io.home, '.cache');
-  return join(cache, 'agents-tracer', 'html', `${id}.html`);
+  return join(cache, 'agents-tracer', 'html', `${id}${conversation ? '.conversation' : ''}.html`);
+}
+
+/** Writes `text` to `out`, relative to the working directory, and says so. */
+function writeOut(io: CliIo, out: string, text: string, print: (text: string) => void): void {
+  const file = resolve(io.cwd, out);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, text);
+  print(`Wrote ${out} (${Math.round(statSync(file).size / 1024)}K)`);
 }
 
 /**
@@ -147,14 +157,37 @@ export async function run(argv: readonly string[], io: CliIo, adapters: AdapterR
         const { adapter, store } = locate(command.global, io, adapters);
         const session = adapter.load(
           fromStore(store, () => resolveSession(adapter, store, command.session, io)),
-          shell,
+          command.conversation ? { ...shell, conversation: true } : shell,
         );
-        const page = renderHtml(viewSession(session, shell), (io.viewer ?? viewerTemplate)());
-        const out = command.out ?? defaultHtmlPath(io, session.main.id);
-        const file = resolve(io.cwd, out);
-        mkdirSync(dirname(file), { recursive: true });
-        writeFileSync(file, page);
-        print(`Wrote ${out} (${Math.round(statSync(file).size / 1024)}K)`);
+        const data = command.conversation ? viewConversation(session) : viewSession(session, shell);
+        const page = renderHtml(data, (io.viewer ?? viewerTemplate)());
+        writeOut(io, command.out ?? defaultHtmlPath(io, session.main.id, command.conversation), page, print);
+        return 0;
+      }
+      case 'transcript': {
+        const { adapter, store } = locate(command.global, io, adapters);
+        const session = adapter.load(
+          fromStore(store, () => resolveSession(adapter, store, command.session, io)),
+          {
+            ...shell,
+            conversation: true,
+          },
+        );
+        // Without the agents' threads, their transcripts need no analysis.
+        const conversation = buildConversation(
+          analyzeSession(command.subagents ? session : { ...session, agents: [] }),
+        );
+        const turns = conversation.threads[0]?.turns.filter((t) => t.n > 0).length ?? 0;
+        if (command.turn !== undefined && command.turn > turns)
+          throw new Error(`the session has no turn ${command.turn}; it has ${turns}`);
+        const text = markdown(conversation, {
+          context: command.context,
+          maxOutput: command.maxOutput,
+          subagents: command.subagents,
+          ...(command.turn !== undefined && { turn: command.turn }),
+        });
+        if (command.out === undefined) print(text.replace(/\n$/, ''));
+        else writeOut(io, command.out, printable(text), print);
         return 0;
       }
       case 'serve': {

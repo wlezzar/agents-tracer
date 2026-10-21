@@ -10,6 +10,14 @@ export function oneLine(s: string | null | undefined, n = 80): string {
   return t.length > n ? `${t.slice(0, n - 1)}…` : t;
 }
 
+/** Keeps the head and the tail of a long text, `n` characters in all: a command's failures are usually at its end. */
+export function clip(text: string, n: number): string {
+  if (text.length <= n) return text;
+  const head = Math.ceil(n / 2);
+  const tail = n - head;
+  return `${text.slice(0, head)}\n\n… ${text.length - n} characters left out …\n\n${text.slice(text.length - tail)}`;
+}
+
 /** A table cell; a missing one prints as nothing. */
 export type TableCell = string | number | null | undefined;
 

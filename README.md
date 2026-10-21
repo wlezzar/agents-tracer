@@ -4,6 +4,8 @@ Where did the time go in a coding-agent session?
 
 agents-tracer reads a coding agent's local session transcripts, rebuilds the session's timeline, and charges every moment of wall-clock time to what was pending: the model generating, a tool running, you (between turns, or answering the agent's questions), a background task, or compaction. It shows the result as a text report, as an interactive HTML timeline in one self-contained file, or from a local web server that browses every session of a project.
 
+It also shows what was said: every prompt, the model's reasoning and replies, each tool call with its input and output, and everything the harness put in front of the model (instruction files, memory, reminders, hooks' output, skills), with the context each model call read. Read it as a page, or export it as Markdown to read in an editor or hand to an agent, to find what to improve in your setup.
+
 Claude Code is the first agent it reads. Its model of a session is agent-neutral, so adapters for other coding agents can plug in without changing the analysis, the report, or the viewer.
 
 ## Install from source
@@ -25,7 +27,8 @@ To have it on your path, put `agents-tracer` where your shell looks, pointing at
 ```text
 agents-tracer list
 agents-tracer report <session> [--timeline] [--turn <n>] [--top <n>] [--no-subagents] [--min-idle <seconds>]
-agents-tracer html <session> [--out <file>]
+agents-tracer html <session> [--out <file>] [--conversation]
+agents-tracer transcript <session> [--context] [--max-output <n>] [--turn <n>] [--no-subagents] [--out <file>]
 agents-tracer serve [--port <n>]
 ```
 
@@ -129,9 +132,59 @@ The page shows:
 
 Drag to pan; Ctrl, ⌘, or Alt with the wheel, a pinch, or W and S zoom; A and D pan; F fits; drag across the time axis to zoom to a range; double-click zooms to a span; J and K step through spans; Escape clears the selection; `/` jumps to the filter; click a lane's name to show its panels. The theme button cycles between the system's theme, light, and dark, and the page remembers it.
 
+### html --conversation
+
+The session's conversation, in one self-contained HTML file: what was said, turn by turn, rather than when.
+
+```console
+$ agents-tracer html 5e1f --conversation
+Wrote /home/dev/.cache/agents-tracer/html/5e1f0c2a-8b3d-4c6e-9f7a-1d2b3c4d5e6f.conversation.html (163K)
+```
+
+The page shows one thread at a time, the session's or one of its agents' (pick it at the top, or follow an agent's call to it and back):
+
+- **Stats** of the thread: wall and active time, model and tool calls (how many failed, were interrupted, or were refused), the largest context a model call read, how much context the harness added, and the compactions.
+- **The context chart**: the tokens each model call read, call after call, with a line where the context was compacted. Hover for a call's numbers; click to go to it.
+- **The turns**, with an outline beside them. Each turn shows the prompt (or the task's report, or the command), then each model call with its model, duration, context, and what that grew by since the call before, and its blocks: the reasoning (its text when the agent recorded it; Claude Code mostly records only that the model reasoned, and for how long), the replies, and the tool calls. A tool call is one row with its duration, status, output size, and who allowed or refused it when that was you or a rule; open it for its input and output, with copy buttons. What the harness added between them (instruction files, memory, reminders, hooks' output, skills, listings of tools) is one dashed row per stretch, with each item's kind, what it is, and its size; open it for the text the model saw.
+- **Filters**: everything, the prompts and replies only, tool calls, shell commands, what failed, was interrupted, or was refused, the harness's context, the recorded reasoning, or what was slower than 10s, and a search through every text, outputs included, with its matches marked. _Harness context_ hides or shows what the harness added.
+
+J and K go to the next and previous turn, F to the next failed or refused call, `/` to the search.
+
+### transcript
+
+The same conversation as Markdown, on standard output or in a file (`--out <file>`): a header with the session's numbers, then each thread's turns. Prompts and replies are quoted, inputs and outputs fenced, and every model call names its context and what it grew by, which makes it something an agent can read to find what in the setup cost the session time or context.
+
+````console
+$ agents-tracer transcript 5e1f --turn 3 --no-subagents
+# Cart badge in the header
+…
+### Turn 3 · you · 03-15 00:10:00 · active 1m10s
+
+#### You · 03-15 00:10:00
+
+> Look at the design mock and run the e2e tests
+
+#### Model · claude-opus-4-1 · 03-15 00:10:04 · 4.0s · context 20.2k · 60 out
+
+##### Read · `docs/badge-mock.png` · 0.3s
+…
+#### Model · claude-opus-4-1 · 03-15 00:10:10 · 5.7s · context 21.8k (+1.6k) · 75 out
+
+##### Bash · Run the e2e tests · `pnpm exec playwright` · 1m00s · interrupted
+
+```sh
+pnpm exec playwright test
+```
+…
+````
+
+- `--context` writes what the harness added in full; by default each item is one line with its kind, what it is, and its size.
+- `--max-output <n>` keeps at most `n` characters of each input, output, reasoning, and context item, its head and its tail (3000 by default); `--max-output 0` keeps everything.
+- `--turn <n>` writes only turn `n` of the session, with the agents it launched; `--no-subagents` leaves the agents out.
+
 ### serve
 
-A web server that lists the project's sessions, newest first, and shows each one's timeline (`/s/<session id>`), built when you open it and kept until the session's transcript or one of its subagents' changes, so a session that is still running shows its latest state on reload.
+A web server that lists the project's sessions, newest first, and shows each one's timeline (`/s/<session id>`) and conversation (`/s/<session id>/conversation`), built when you open them and kept until the session's transcript or one of its subagents' changes, so a session that is still running shows its latest state on reload. The served pages link to each other: a span of the timeline to its call in the conversation, and a call of the conversation to its span in the timeline.
 
 ```console
 $ agents-tracer serve

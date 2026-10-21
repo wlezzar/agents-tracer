@@ -12,7 +12,13 @@ import { shellOptions } from '../src/cli/env.js';
 import { defaultHtmlPath } from '../src/cli/run.js';
 import { isRecord } from '../src/util/index.js';
 import { runCli } from './support/cli.js';
-import { CLAUDE_CODE_STORE as store, FIXTURES, SESSIONS } from './support/fixtures.js';
+import {
+  CLAUDE_CODE_STORE as store,
+  CONVERSATION,
+  CONVERSATION_STORE,
+  FIXTURES,
+  SESSIONS,
+} from './support/fixtures.js';
 import { createMemoryAdapter, session, toolCall, transcript } from './support/memory-adapter.js';
 
 // The CLI end to end, in process: what it prints, where, and its exit code.
@@ -26,7 +32,7 @@ describe('help and version', () => {
       expect(code).toBe(0);
       expect(stderr).toBe('');
       expect(stdout).toMatch(/^agents-tracer: where did the time go/);
-      for (const command of ['list', 'report <session>', 'html <session>', 'serve'])
+      for (const command of ['list', 'report <session>', 'html <session>', 'transcript <session>', 'serve'])
         expect(stdout).toContain(`agents-tracer ${command}`);
       expect(stdout).toContain('claude-code (Claude Code)');
     }
@@ -167,6 +173,77 @@ describe('html', () => {
       stdout: '',
       stderr: 'agents-tracer: the viewer is not built: no dist/viewer/viewer.html; run pnpm build\n',
     });
+  });
+});
+
+describe('html --conversation', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'agents-tracer-conversation-'));
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('writes the session’s conversation page, named apart from its timeline by default', async () => {
+    const env = { XDG_CACHE_HOME: dir };
+    const file = join(dir, 'agents-tracer', 'html', `${CONVERSATION.session}.conversation.html`);
+    const result = await runCli(['html', '7a3c', '--store', CONVERSATION_STORE, '--conversation'], { env });
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(`Wrote ${file} (`);
+    const json = /application\/json">(.*)<\/script>/s.exec(readFileSync(file, 'utf8'))?.[1] ?? 'null';
+    const page: unknown = JSON.parse(json);
+    expect(page).toMatchObject({ conversation: { session: { id: CONVERSATION.session }, shellLabel: 'Bash' } });
+    expect(isRecord(page) && 'serve' in page).toBe(false);
+    expect(defaultHtmlPath({ home: '/home/dev', env: {} }, 'x', true)).toBe(
+      '/home/dev/.cache/agents-tracer/html/x.conversation.html',
+    );
+  });
+});
+
+describe('transcript', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'agents-tracer-transcript-'));
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('prints the session’s conversation as Markdown', async () => {
+    const { code, stdout, stderr } = await runCli(['transcript', '7a3c', '--store', CONVERSATION_STORE]);
+    expect({ code, stderr }).toEqual({ code: 0, stderr: '' });
+    expect(stdout).toMatch(/^# Checkout button state\n\n- Session: `7a3c9e1f/);
+    expect(stdout).toContain('## Agent: Check the form');
+    expect(stdout.endsWith('> The button needs aria-busy while submitting.\n')).toBe(true);
+  });
+
+  it('writes it to --out, leaves out the agents, and keeps one turn', async () => {
+    const result = await runCli(
+      ['transcript', '7a3c', '--store', CONVERSATION_STORE, '--no-subagents', '--turn', '2', '--out', 'one.md'],
+      { cwd: dir },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).toMatch(/^Wrote one\.md \(\d+K\)\n$/);
+    const md = readFileSync(join(dir, 'one.md'), 'utf8');
+    expect(md).toContain('### Turn 2 · command');
+    expect(md).not.toContain('### Turn 1 ·');
+    expect(md).not.toContain('## Agent:');
+  });
+
+  it('says how many turns the session has when --turn names one it has not', async () => {
+    expect(await runCli(['transcript', '7a3c', '--store', CONVERSATION_STORE, '--turn', '9'])).toEqual({
+      code: 1,
+      stdout: '',
+      stderr: 'agents-tracer: the session has no turn 9; it has 4\n',
+    });
+  });
+
+  it('reads what the events say for an adapter that reads no conversation', async () => {
+    const t0 = Date.UTC(2026, 0, 5, 9, 0);
+    const adapter = createMemoryAdapter([
+      session(transcript('aaa111', [{ kind: 'prompt', ts: t0, text: 'Add a cart badge' }], { title: 'Cart badge' })),
+    ]);
+    const { code, stdout } = await runCli(['transcript', 'aaa', '--adapter', 'memory', '--store', 'memory:'], {
+      adapters: createRegistry([adapter], 'memory'),
+    });
+    expect(code).toBe(0);
+    expect(stdout).toContain('# Cart badge');
+    expect(stdout).toContain('#### You · 10:00:00\n\n> Add a cart badge');
   });
 });
 

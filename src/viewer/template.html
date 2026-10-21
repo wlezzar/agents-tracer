@@ -252,6 +252,88 @@ pre {
 
 #index { padding: 0 20px 32px; }
 #index .pane { padding: 10px 12px; }
+
+/* The conversation page */
+#conversation header.top a { white-space: nowrap; }
+.cv-threadbar { display: flex; align-items: center; gap: 12px; padding: 0 20px 10px; flex-wrap: wrap; }
+.cv-threadbar label { display: inline-flex; align-items: center; gap: 6px; }
+.cv-threadbar select { max-width: 520px; }
+.cv-chart { margin: 0 20px 10px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px 6px; }
+.cv-chart-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 12px; }
+.cv-chart-head .who { font-weight: 600; font-size: 13px; }
+.cv-chart-plot { position: relative; padding-top: 14px; }
+.cv-chart svg { display: block; cursor: crosshair; }
+.cv-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.cv-base { stroke: var(--grid); stroke-width: 1; }
+.cv-compaction-mark { stroke: var(--axis); stroke-width: 1; }
+.cv-cross { stroke: var(--axis); stroke-width: 1; }
+.cv-dot, .cv-peak { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+.cv-peak-label { position: absolute; top: 0; font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cv-body { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); gap: 12px; padding: 0 20px 40px; align-items: start; }
+@media (max-width: 900px) { .cv-body { grid-template-columns: minmax(0, 1fr); } .cv-outline { position: static; max-height: 240px; } }
+.cv-outline { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; padding: 4px 0 8px; }
+.cv-outline-head { padding: 4px 10px 6px; font-size: 12px; }
+.cv-outline a { display: flex; gap: 6px; align-items: baseline; padding: 3px 10px; color: var(--text-primary); font-size: 12px; }
+.cv-outline a:hover { background: var(--hover); text-decoration: none; }
+.cv-outline a.on { background: var(--wash); }
+.cv-outline a.dim { color: var(--muted); }
+.cv-outline .n { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 22px; text-align: right; }
+.cv-outline .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv-outline .meta { color: var(--muted); font-variant-numeric: tabular-nums; }
+.cv-who { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; background: var(--wait-you); }
+.cv-who.task { background: var(--wait-bg); }
+.cv-who.command, .cv-who.none { background: transparent; border: 1px solid var(--axis); }
+.cv-stream { min-width: 0; }
+.cv-empty { padding: 16px; }
+.cv-turn { margin-bottom: 18px; scroll-margin-top: 4px; }
+.cv-turn-head { position: sticky; top: 0; z-index: 2; background: var(--page); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; padding: 6px 2px; border-bottom: 1px solid var(--grid); }
+.cv-turn-head h2 { font-size: 14px; margin: 0; }
+.cv-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; margin: 8px 0; overflow: hidden; scroll-margin-top: 48px; }
+.cv-card-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; padding: 6px 12px; font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.cv-card-head .who { font-weight: 600; font-size: 13px; color: var(--text-primary); }
+.cv-card-head .cv-tl { margin-left: auto; }
+.cv-prose { padding: 2px 12px 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cv-prompt { border-left: 3px solid var(--wait-you); }
+.cv-prompt.task { border-left-color: var(--wait-bg); }
+.cv-prompt.command { border-left-color: var(--axis); }
+.cv-model { border-left: 3px solid var(--series-1); }
+.cv-grew { color: var(--critical); font-weight: 600; }
+.cv-harness { background: transparent; border-style: dashed; }
+.cv-harness .cv-row .name { color: var(--text-secondary); }
+.cv-compaction { border-left: 3px solid var(--axis); }
+.cv-unit { scroll-margin-top: 48px; }
+.cv-row { display: flex; gap: 8px; align-items: baseline; padding: 4px 12px; border-top: 1px solid var(--grid); font-size: 12.5px; cursor: pointer; min-width: 0; }
+.cv-card > .cv-unit:first-child > .cv-row { border-top: none; }
+.cv-row:hover { background: var(--hover); }
+.cv-row:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+.cv-row.static { cursor: default; }
+.cv-row.static:hover { background: none; }
+.cv-row .name { font-weight: 600; white-space: nowrap; }
+.cv-row .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.cv-row .meta { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cv-row .chip { white-space: nowrap; }
+.cv-twist { width: 10px; flex: none; color: var(--muted); }
+.cv-twist::before { content: "▸"; }
+.cv-unit.open > .cv-row > .cv-twist::before { content: "▾"; }
+.cv-row.static .cv-twist::before { content: ""; }
+.cv-key { display: inline-block; width: 8px; height: 8px; border-radius: 2px; flex: none; align-self: center; }
+.cv-key.shell { background: var(--series-2); }
+.cv-key.tool { background: var(--series-3); }
+.cv-key.you { background: var(--wait-you); }
+.cv-key.think { background: var(--series-1); opacity: 0.5; }
+.cv-failure > .cv-row .name { color: var(--critical); }
+.cv-open { padding: 6px 12px 12px 30px; border-top: 1px solid var(--grid); background: var(--page); }
+.cv-open .cv-unit .cv-open { padding-left: 18px; }
+.cv-open .cv-prose { padding: 0; }
+.cv-facts { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 2px 0 8px; font-size: 12px; }
+.cv-facts dt { color: var(--text-secondary); }
+.cv-facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.cv-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.cv-actions:empty { display: none; }
+.cv-notice { display: flex; gap: 8px; align-items: baseline; padding: 4px 4px; font-size: 12.5px; }
+.cv-flash { animation: cv-flash 1.8s ease-out; }
+@keyframes cv-flash { from { box-shadow: 0 0 0 3px var(--series-1); } to { box-shadow: 0 0 0 3px transparent; } }
+mark { background: rgba(235, 104, 52, 0.32); color: inherit; border-radius: 2px; }
 </style>
 </head>
 <body>
@@ -261,6 +343,7 @@ pre {
     <h1 id="title"></h1>
     <span id="subtitle" class="muted"></span>
     <span class="spacer"></span>
+    <a id="conversation-link" hidden>Conversation</a>
     <button id="theme" type="button" title="Theme">Theme: system</button>
   </header>
   <section id="stats" class="stats" aria-label="Lane statistics"></section>
@@ -318,6 +401,35 @@ pre {
     <input type="search" id="index-q" placeholder="Filter sessions">
   </header>
   <div class="pane"><div id="index-table"></div></div>
+</div>
+<div id="conversation" hidden>
+  <header class="top">
+    <a id="cv-back" href="/" hidden>← All sessions</a>
+    <h1 id="cv-title"></h1>
+    <span id="cv-subtitle" class="muted"></span>
+    <span class="spacer"></span>
+    <a id="cv-timeline" hidden>Timeline</a>
+    <button id="cv-theme" type="button" title="Theme">Theme: system</button>
+  </header>
+  <div class="cv-threadbar">
+    <label>Thread <select id="cv-thread" aria-label="Thread"></select></label>
+    <span id="cv-launch" class="muted"></span>
+  </div>
+  <section id="cv-stats" class="stats" aria-label="Thread statistics"></section>
+  <div id="cv-chart" class="cv-chart" hidden></div>
+  <div class="toolbar">
+    <input type="search" id="cv-q" placeholder="Search prompts, replies, inputs, outputs (/)">
+    <select id="cv-filter" aria-label="Show"></select>
+    <label><input type="checkbox" id="cv-harness" checked> Harness context</label>
+    <button id="cv-expand" type="button">Expand all</button>
+    <button id="cv-collapse" type="button">Collapse all</button>
+    <span id="cv-count" class="muted"></span>
+  </div>
+  <div class="hint">Click a row to open it · J / K: next or previous turn · F: next failed or refused call · / to search · click the chart to go to a model call</div>
+  <div class="cv-body">
+    <nav id="cv-outline" class="pane cv-outline" aria-label="Turns"></nav>
+    <main id="cv-stream" class="cv-stream"></main>
+  </div>
 </div>
 <div id="tip" class="tip" hidden></div>
 <script id="trace-data" type="application/json">"__TRACE_DATA__"</script>

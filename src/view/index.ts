@@ -1,8 +1,11 @@
 // The view: the data the viewer reads, its builder, and the viewer's page with that data.
 
-export { buildView, clip, viewSession, type ViewOptions } from './build.js';
+export { clip } from '../util/index.js';
+export { buildView, viewSession, type ViewOptions } from './build.js';
+export { CONVERSATION_TEXT, conversationView, viewConversation, type ConversationViewOptions } from './conversation.js';
 export { DATA_PLACEHOLDER, renderHtml, viewerTemplate } from './render.js';
 export type {
+  ConversationData,
   IndexData,
   IndexSession,
   ModelSpan,

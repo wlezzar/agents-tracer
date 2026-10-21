@@ -1,6 +1,6 @@
 # agents-tracer
 
-agents-tracer answers "where did the time go?" for coding-agent sessions. It reads an agent's local session transcripts, rebuilds a timeline, charges every moment of wall-clock time to what was pending (the model generating, a tool running, the person, a background task, compaction), and presents it as a text report, a self-contained HTML timeline, or a loopback web server that browses every session. Claude Code is the first adapter; the model and the analysis are agent-neutral so that other agents' adapters plug in without touching anything else.
+agents-tracer answers "where did the time go?" for coding-agent sessions. It reads an agent's local session transcripts, rebuilds a timeline, charges every moment of wall-clock time to what was pending (the model generating, a tool running, the person, a background task, compaction), and presents it as a text report, a self-contained HTML timeline, or a loopback web server that browses every session. It also shows what each session said, turn by turn (prompts, reasoning, replies, tool calls with their inputs and outputs, and what the harness added), as a conversation page or as Markdown, to find what to improve in a person's harness. Claude Code is the first adapter; the model and the analysis are agent-neutral so that other agents' adapters plug in without touching anything else.
 
 It is a TypeScript port of a JavaScript prototype (`trace.mjs` and `viewer.html`), which stays the source of truth for behavior: see [Parity](#parity-with-the-prototype).
 
@@ -18,7 +18,7 @@ pnpm test           # vitest: unit and integration tests
 pnpm test:e2e       # build, then drive the viewer (html and serve over the fixtures) in Playwright's Chromium
 pnpm check          # the full gate: typecheck, lint, format:check, test, build
 pnpm parity         # build, then compare the CLI with the prototype over every local Claude Code store (or the stores given)
-pnpm tracer <args>  # build, then run the CLI, such as pnpm tracer report 3f2a
+pnpm tracer <args>  # build, then run the CLI, such as pnpm tracer report 3f2a or pnpm tracer transcript 3f2a
 node scripts/expectations.ts  # rewrite test/fixtures/claude-code/expected/ (report texts and view data) from the prototype, after a fixture or a case changes
 ```
 
@@ -28,19 +28,20 @@ Playwright's Chromium comes from `~/.cache/ms-playwright`; when it is missing, `
 
 ```text
 src/
-  model/      neutral types: events, transcripts, sessions, tool descriptions, the adapter interface
-  util/       pure helpers: durations, token counts, local clock and day, oneLine, table, shellKey
-  adapters/   registry.ts, and one directory per adapter (claude-code/)
-  analysis/   the timing state machine and aggregates over the model
-  report/     the text report
-  view/       the view data the viewer reads, its builder, and renderHtml
-  viewer/     template.html (markup and CSS) and client/ (the browser TypeScript)
-  server/     the loopback HTTP server
-  cli/        argument parsing and the commands
-test/         cross-layer tests, test/support/ (the test-only memory adapter, fixture paths, runCli), test/fixtures/<adapter>/
-eslint/       the repository's own ESLint rules
-scripts/      build.ts, parity.ts, expectations.ts
-docs/         architecture, model, adapters
+  model/        neutral types: events, conversation entries, transcripts, sessions, tool descriptions, the adapter interface
+  util/         pure helpers: durations, token counts, local clock and day, oneLine, table, shellKey
+  adapters/     registry.ts, and one directory per adapter (claude-code/)
+  analysis/     the timing state machine and aggregates over the model
+  conversation/ each transcript's conversation in turns, and its Markdown export
+  report/       the text report
+  view/         the view data the viewer reads, its builder, and renderHtml
+  viewer/       template.html (markup and CSS) and client/ (the browser TypeScript)
+  server/       the loopback HTTP server
+  cli/          argument parsing and the commands
+test/           cross-layer tests, test/support/ (the test-only memory adapter, fixture paths, runCli), test/fixtures/<adapter>/
+eslint/         the repository's own ESLint rules
+scripts/        build.ts, parity.ts, expectations.ts
+docs/           architecture, model, adapters
 ```
 
 A layer may import only the layers below; nothing imports `cli/`. The rule `agents-tracer/layers` (`eslint/layers.mjs`, configured in `eslint.config.mjs`) enforces it, along with which Node built-ins each layer may use, that `src/` imports no package (nor `createRequire`), and that a dynamic `import()` names its module by a plain string. When a dependency rule changes, change `eslint.config.mjs` and [docs/architecture.md](docs/architecture.md) together.
@@ -53,7 +54,8 @@ A layer may import only the layers below; nothing imports `cli/`. The rule `agen
 | `adapters` (registry) | `model`, every adapter                             | none           |
 | `analysis`            | `model`, `util`                                    | none           |
 | `report`              | `analysis`, `model`, `util`                        | none           |
-| `view`                | `analysis`, `model`, `util`                        | any            |
+| `conversation`        | `analysis`, `model`, `util`                        | none           |
+| `view`                | `analysis`, `conversation`, `model`, `util`        | any            |
 | `viewer/client`       | `view`, with `import type` only                    | none           |
 | `server`              | `view`, `adapters` (the registry), `model`, `util` | any            |
 | `cli`                 | everything                                         | any            |
@@ -70,7 +72,7 @@ The repository is public. Never commit a real transcript, an excerpt of one, a s
 
 ## Parity with the prototype
 
-The port must behave as the prototype does: for every Claude Code session and subagent transcript, `agents-tracer report` prints byte-identical output to the prototype with the equivalent flags, `agents-tracer list` matches its `--list`, and the view data `agents-tracer html` embeds deep-equals the prototype's (fields may be added, none removed or changed). The viewer renders the same pixels for the same data. The only intended differences are the subcommands instead of flags, the default output location of `html`, and the help and version text, that the tools whose subcommand keys a shell command are only the public ones of `SUBCOMMAND_TOOLS` unless `AGENTS_TRACER_SUBCOMMAND_TOOLS` adds others (`pnpm parity` passes the prototype's whole list that way, read from its source), that the CLI checks option values and reports a bad one in one line where the prototype ran with it (a negative number, a fraction of a count, an exponent, a forgotten value that swallowed the next option), and that it prints control characters as visible stand-ins (`pnpm parity` maps the prototype's output the same way).
+The port must behave as the prototype does: for every Claude Code session and subagent transcript, `agents-tracer report` prints byte-identical output to the prototype with the equivalent flags, `agents-tracer list` matches its `--list`, and the view data `agents-tracer html` embeds deep-equals the prototype's (fields may be added, none removed or changed). The viewer renders the same pixels for the same data. The only intended differences are the subcommands instead of flags, the default output location of `html`, and the help and version text, that the tools whose subcommand keys a shell command are only the public ones of `SUBCOMMAND_TOOLS` unless `AGENTS_TRACER_SUBCOMMAND_TOOLS` adds others (`pnpm parity` passes the prototype's whole list that way, read from its source), that the CLI checks option values and reports a bad one in one line where the prototype ran with it (a negative number, a fraction of a count, an exponent, a forgotten value that swallowed the next option), that it prints control characters as visible stand-ins (`pnpm parity` maps the prototype's output the same way), and the conversation, which the prototype has not: the `transcript` command, `html --conversation`, the server's `/s/<id>/conversation`, and the links to it (the served timeline's _Conversation_ link and its detail pane's _Show in the conversation_, the index's _Conversation_ column, the view data's `conversationHref` and span `id`s, and the `#lane=…` hash either page opens at). Reading a conversation (`LoadOptions.conversation`) leaves a transcript's events as they are, so it cannot change the report or the view data.
 
 Two checks hold the port to it:
 

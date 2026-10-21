@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { indent, oneLine, printable, table } from './text.js';
+import { clip, indent, oneLine, printable, table } from './text.js';
 
 // Expected strings are the prototype's (session-trace/trace.mjs) for the same inputs.
 
@@ -68,5 +68,13 @@ describe('printable', () => {
     expect(printable('\u001b]0;title\u0007 \u001b[2J')).toBe('\u241b]0;title\u2407 \u241b[2J');
     expect(printable('a\r\u0000b\u007f\u009bc\u0085')).toBe('a\u240d\u2400b\u2421\ufffdc\ufffd');
     expect(printable('line one\n\tline two · “ok” ✗ é')).toBe('line one\n\tline two · “ok” ✗ é');
+  });
+});
+
+describe('clip', () => {
+  it('keeps a text that fits, and the head and tail of a longer one', () => {
+    expect(clip('short', 10)).toBe('short');
+    expect(clip('0123456789', 10)).toBe('0123456789');
+    expect(clip('0123456789abc', 5)).toBe('012\n\n… 8 characters left out …\n\nbc');
   });
 });

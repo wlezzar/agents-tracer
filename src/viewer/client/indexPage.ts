@@ -20,7 +20,7 @@ export function renderIndex(data: IndexData): void {
       'tbody',
       {},
       shown.map((r) => {
-        const { href } = r;
+        const { href, conversationHref } = r;
         // A session the server cannot open (its id cannot be in a URL) is listed without a link.
         const label = r.title !== null && r.title !== '' ? r.title : oneLine(r.first, 160) || '(no prompt)';
         return el(
@@ -43,6 +43,20 @@ export function renderIndex(data: IndexData): void {
             href === null ? el('span', { text: label }) : el('a', { href, text: label }),
             r.title && r.first ? el('span', { class: 'muted' }, `  ${oneLine(r.first, 120)}`) : null,
           ),
+          el(
+            'td',
+            {},
+            conversationHref === null
+              ? null
+              : el('a', {
+                  href: conversationHref,
+                  text: 'Conversation',
+                  // The row itself opens the timeline.
+                  onclick: (e) => {
+                    e.stopPropagation();
+                  },
+                }),
+          ),
           el('td', { class: 'muted' }, r.id.slice(0, 8)),
         );
       }),
@@ -61,6 +75,7 @@ export function renderIndex(data: IndexData): void {
             el('th', { class: 'num', text: 'Wall' }),
             el('th', { class: 'num', text: 'Size' }),
             el('th', { text: 'Title / first prompt' }),
+            el('th', { text: '' }),
             el('th', { text: 'Session' }),
           ),
         ),

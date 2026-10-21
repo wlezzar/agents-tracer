@@ -1,4 +1,4 @@
-import type { IndexData, PageData, ViewData } from '../../view/types.js';
+import type { ConversationData, IndexData, PageData, ViewData } from '../../view/types.js';
 
 // The page's data, embedded by renderHtml as JSON in <script id="trace-data">, checked for the
 // shape the viewer reads before it is used.
@@ -49,10 +49,25 @@ export function isViewData(value: unknown): value is ViewData {
   );
 }
 
-/** The data embedded in the page; throws when it holds neither a session nor an index. */
+export function isConversationData(value: unknown): value is ConversationData {
+  if (!isRecord(value)) return false;
+  const c = value['conversation'];
+  return (
+    isRecord(c) &&
+    isRecord(c['session']) &&
+    typeof c['shellLabel'] === 'string' &&
+    Array.isArray(c['threads']) &&
+    c['threads'].length > 0 &&
+    c['threads'].every(
+      (t) => isRecord(t) && typeof t['id'] === 'string' && Array.isArray(t['turns']) && isRecord(t['stats']),
+    )
+  );
+}
+
+/** The data embedded in the page; throws when it holds no session, conversation, or index. */
 export function readPageData(): PageData {
   const text = document.getElementById('trace-data')?.textContent ?? 'null';
   const data: unknown = JSON.parse(text);
-  if (isIndexData(data) || isViewData(data)) return data;
+  if (isIndexData(data) || isConversationData(data) || isViewData(data)) return data;
   throw new Error('the page holds no view data');
 }

@@ -2,9 +2,10 @@ import type { Bucket, ViewTurn } from '../../view/types.js';
 import type { App, Tab } from './app.js';
 import { bucketLabel, catOfBucket, catOfSpan, failed, isIdle, spanDetail, spanName, type Cat } from './categories.js';
 import { color } from './colors.js';
-import { byId, el, present, query, queryAll, type Child } from './dom.js';
+import { byId, copyButton, el, present, query, queryAll, type Child } from './dom.js';
 import { fmt, kTok, oneLine, pct } from './format.js';
 import type { Lane, LaneSpan } from './layout.js';
+import { targetHash } from './links.js';
 import { isTraceKind, nextSort, traceRows, type TraceSort } from './trace.js';
 
 // The panels below the timeline: the stats tiles, the Trace, Turns, Breakdown, and Agents tabs, and
@@ -578,25 +579,6 @@ function renderAgents(app: App): void {
   );
 }
 
-function copyButton(text: string): HTMLButtonElement {
-  const button = el('button', { type: 'button' }, 'Copy');
-  button.addEventListener('click', () => {
-    const copied = (async () => {
-      try {
-        await navigator.clipboard.writeText(text);
-        button.textContent = 'Copied';
-      } catch {
-        button.textContent = 'Copy failed';
-      }
-      setTimeout(() => {
-        button.textContent = 'Copy';
-      }, 1200);
-    })();
-    void copied;
-  });
-  return button;
-}
-
 /** A titled block of text with a copy button; nothing for an empty text. */
 function block(title: string, text: string): HTMLElement[] {
   if (!text) return [];
@@ -738,6 +720,19 @@ export function renderDetail(app: App): void {
         s.t === 'm' && s.cr != null ? ['Cache read', kTok(s.cr)] : null,
         s.t === 'm' && s.cw != null ? ['Cache written', kTok(s.cw)] : null,
         ['Lane', laneLink(app, l)],
+        // Only the server's pages have a conversation page to link to.
+        app.data.conversationHref === undefined
+          ? null
+          : [
+              'Conversation',
+              el(
+                'a',
+                {
+                  href: `${app.data.conversationHref}${targetHash(s.t === 't' ? { lane: l.id, tool: s.id } : { lane: l.id, model: s.id })}`,
+                },
+                'Show in the conversation',
+              ),
+            ],
       ]),
     ];
     if (s.t === 't') {

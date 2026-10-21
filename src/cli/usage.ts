@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import type { AdapterRegistry } from '../model/index.js';
+import { MAX_OUTPUT } from '../conversation/index.js';
 import { SUBCOMMAND_TOOLS } from '../util/index.js';
 import { DEFAULT_PORT } from './args.js';
 import { SUBCOMMAND_TOOLS_VAR } from './env.js';
@@ -16,7 +17,8 @@ Usage:
   agents-tracer list                  the project's sessions, oldest first
   agents-tracer report <session>      where a session's time went
   agents-tracer html <session>        a session's interactive timeline, in one HTML file
-  agents-tracer serve                 browse every session's timeline on 127.0.0.1
+  agents-tracer transcript <session>  a session's conversation as Markdown
+  agents-tracer serve                 browse every session's timeline and conversation on 127.0.0.1
 
 A <session> is a session's id or a prefix of it, a subagent's id or a prefix of it, or the path of a
 transcript.
@@ -29,8 +31,18 @@ Report options:
   --min-idle <seconds>    the shortest idle gap the timeline shows (default: 1)
 
 Html options:
+  --conversation          write the session's conversation instead: every prompt, response, tool
+                          call, result, and what the harness added
   --out <file>            where to write it (default: $XDG_CACHE_HOME, or ~/.cache, then
-                          agents-tracer/html/<session id>.html)
+                          agents-tracer/html/<session id>.html, or <session id>.conversation.html)
+
+Transcript options:
+  --context               write what the harness added in full (default: one line for each)
+  --max-output <n>        keep at most n characters of each input, output, and context item, its
+                          head and tail; 0 keeps all (default: ${MAX_OUTPUT})
+  --turn <n>              only turn <n>, and the agents it launched
+  --no-subagents          leave out the agents' conversations
+  --out <file>            write it to a file instead of standard output
 
 Serve options:
   --port <n>              the port to listen on (default: ${DEFAULT_PORT})

@@ -65,3 +65,37 @@ export function nodes(kids: readonly Child[]): (Node | string)[] {
 export function present<T>(values: readonly (T | null | undefined | false)[]): T[] {
   return values.filter((v): v is T => v != null && v !== false);
 }
+
+/** A button that copies `text` to the clipboard, and says whether it did. */
+export function copyButton(text: string): HTMLButtonElement {
+  const button = el('button', { type: 'button' }, 'Copy');
+  button.addEventListener('click', () => {
+    const copied = (async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = 'Copied';
+      } catch {
+        button.textContent = 'Copy failed';
+      }
+      setTimeout(() => {
+        button.textContent = 'Copy';
+      }, 1200);
+    })();
+    void copied;
+  });
+  return button;
+}
+
+const SVG = 'http://www.w3.org/2000/svg';
+
+/** A new SVG element with its attributes, then `kids` appended. */
+export function svg<K extends keyof SVGElementTagNameMap>(
+  tag: K,
+  attrs: Readonly<Record<string, string | number>> = {},
+  ...kids: (SVGElement | string)[]
+): SVGElementTagNameMap[K] {
+  const n = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+  for (const c of kids) n.append(c);
+  return n;
+}

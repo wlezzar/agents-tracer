@@ -86,6 +86,7 @@ describe('the server', () => {
         title: null,
         first: 'Add a test for the cart total',
         href: `/s/${SESSIONS.oldFormat}`,
+        conversationHref: `/s/${SESSIONS.oldFormat}/conversation`,
       }),
       expect.objectContaining({ id: SESSIONS.compaction, title: 'Cart store reducer' }),
       expect.objectContaining({
@@ -103,6 +104,24 @@ describe('the server', () => {
       expect(data(res.body)).toMatchObject({ serve: true, shellLabel: 'Bash' });
     }
     expect(data((await get(`/s/${SESSIONS.badge}`)).body)['session']).toMatchObject({ id: SESSIONS.badge });
+    expect(data((await get('/s/5e1f')).body)).toMatchObject({ conversationHref: '/s/5e1f/conversation' });
+  });
+
+  it('serves a session’s conversation at /s/<id>/conversation, linked to its timeline', async () => {
+    const res = await get('/s/5e1f/conversation');
+    expect(res).toMatchObject({ status: 200, type: 'text/html; charset=utf-8' });
+    const page = data(res.body);
+    expect(page).toMatchObject({ serve: true, timelineHref: '/s/5e1f' });
+    const conversation = page['conversation'];
+    expect(conversation).toMatchObject({ session: { id: SESSIONS.badge }, shellLabel: 'Bash' });
+    const threads = isRecord(conversation) && Array.isArray(conversation['threads']) ? conversation['threads'] : [];
+    expect(threads.map((t) => (isRecord(t) ? t['id'] : null))).toContain('a1b2c3d4e5f6a7b8c');
+    // The timeline and the conversation are kept apart.
+    const before = renders;
+    await get('/s/5e1f/conversation');
+    await get('/s/5e1f');
+    expect(renders).toBe(before);
+    expect((await get('/s/zz/conversation')).status).toBe(404);
   });
 
   it('caches a session’s page until its transcript changes', async () => {
@@ -147,6 +166,8 @@ describe('the server', () => {
     for (const path of [
       '/s/',
       '/s/a/b',
+      '/s/5e1f/conversation/x',
+      '/s/5e1f/conversations',
       '/s/..%2Fetc',
       `/s/${encodeURIComponent(join(store, `${SESSIONS.badge}.jsonl`))}`,
       '/x',

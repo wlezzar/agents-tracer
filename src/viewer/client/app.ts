@@ -20,6 +20,7 @@ import {
   type Viewport,
 } from './timeMap.js';
 import type { TraceSort } from './trace.js';
+import { parseTarget, type Target } from './links.js';
 import { colorOr } from './colors.js';
 
 // The viewer of one session: its state, and the actions the timeline and the panels share. The
@@ -142,6 +143,11 @@ export class App {
     byId('subtitle', HTMLSpanElement).textContent =
       `${data.session.id} · ${dayStr(this.T0)} ${clock(this.T0, false)} → ${dayStr(this.T1)} ${clock(this.T1, false)}`;
     byId('back', HTMLAnchorElement).hidden = data.serve !== true;
+    const conversation = byId('conversation-link', HTMLAnchorElement);
+    if (data.conversationHref !== undefined) {
+      conversation.href = data.conversationHref;
+      conversation.hidden = false;
+    }
     // The shell filter is named after the agent's shell tool.
     for (const option of els.kind.options) if (option.value === 'shell') option.textContent = data.shellLabel;
 
@@ -158,6 +164,10 @@ export class App {
     bindTimeline(this);
     bindPanels(this);
     this.setLane(this.cur);
+    this.goTo(parseTarget(location.hash));
+    window.addEventListener('hashchange', () => {
+      this.goTo(parseTarget(location.hash));
+    });
     const resized = new ResizeObserver(() => {
       this.sizeCanvases();
       this.requestDraw();
@@ -314,6 +324,20 @@ export class App {
     renderDetail(this);
     markSelectedRow(this);
     this.requestDraw();
+  }
+
+  /** Selects what a link points at: a span of a lane, or the lane. */
+  goTo(target: Target | null): void {
+    const l = target === null ? undefined : this.laneById.get(target.lane);
+    if (target === null || l === undefined) return;
+    const i =
+      'tool' in target
+        ? l.spans.findIndex((s) => s.t === 't' && s.id === target.tool)
+        : 'model' in target
+          ? l.spans.findIndex((s) => s.t === 'm' && s.id === target.model)
+          : -1;
+    if (i >= 0) this.select({ type: 'span', l, i });
+    else this.showLane(l);
   }
 
   /** Shows a lane: its trace below, the lanes scrolled to it, and the timeline zoomed to it. */
