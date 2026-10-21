@@ -23,9 +23,9 @@ export interface Classified {
   readonly compactions: Compaction[];
 }
 
-const TOOL_USE_ID = /<tool-use-id>(.*?)<\/tool-use-id>/;
-const SUMMARY = /<summary>([\s\S]*?)<\/summary>/;
-const COMMAND_NAME = /<command-name>(.*?)<\/command-name>/;
+export const TOOL_USE_ID = /<tool-use-id>(.*?)<\/tool-use-id>/;
+export const SUMMARY = /<summary>([\s\S]*?)<\/summary>/;
+export const COMMAND_NAME = /<command-name>(.*?)<\/command-name>/;
 
 /** The text of a message's content: a string, or its text blocks joined by a space. */
 export function textOf(content: unknown): string {
@@ -38,7 +38,7 @@ export function textOf(content: unknown): string {
 const joinable = looseText;
 
 /** The first record's working directory (the first that names one). */
-function cwdOf(records: readonly Record<string, unknown>[]): string | undefined {
+export function cwdOf(records: readonly Record<string, unknown>[]): string | undefined {
   for (const r of records) {
     const cwd = r['cwd'];
     if (cwd) return typeof cwd === 'string' ? cwd : undefined;
@@ -60,7 +60,8 @@ function compactionOf(metadata: unknown): Compaction {
   };
 }
 
-function usageOf(usage: unknown): Usage | undefined {
+/** A message's usage; undefined when it has none. */
+export function usageOf(usage: unknown): Usage | undefined {
   if (usage == null) return undefined;
   const u = isRecord(usage) ? usage : {};
   return {
@@ -69,6 +70,26 @@ function usageOf(usage: unknown): Usage | undefined {
     cacheWrite: numberOr(u['cache_creation_input_tokens']) ?? 0,
     input: numberOr(u['input_tokens']) ?? 0,
   };
+}
+
+/**
+ * Whether any `user` record names its origin: in the older format none does, and plain text is
+ * the person's prompt.
+ */
+export function hasOrigins(records: readonly Record<string, unknown>[]): boolean {
+  return records.some((r) => r['type'] === 'user' && Boolean(r['origin']));
+}
+
+/** A `tool_use` block as a tool call, described for a transcript whose working directory is `cwd`. */
+export function toolCallOf(block: Record<string, unknown>, cwd: string | undefined, options: LoadOptions): ToolCall {
+  const name = stringOr(block['name']) ?? '';
+  const input = isRecord(block['input']) ? block['input'] : {};
+  return { id: stringOr(block['id']) ?? '', name, input, desc: describeTool(name, input, cwd, options) };
+}
+
+/** A message's id: the message's own, else the record's uuid. */
+export function messageIdOf(r: Record<string, unknown>, m: Record<string, unknown>): string {
+  return stringOr(m['id']) ?? stringOr(r['uuid']) ?? '';
 }
 
 function responseOf(
@@ -83,17 +104,11 @@ function responseOf(
   const blocks = content.filter(isRecord);
   const model = stringOr(m['model']);
   const usage = usageOf(m['usage']);
-  const toolCalls: ToolCall[] = blocks
-    .filter((b) => b['type'] === 'tool_use')
-    .map((b) => {
-      const name = stringOr(b['name']) ?? '';
-      const input = isRecord(b['input']) ? b['input'] : {};
-      return { id: stringOr(b['id']) ?? '', name, input, desc: describeTool(name, input, cwd, options) };
-    });
+  const toolCalls: ToolCall[] = blocks.filter((b) => b['type'] === 'tool_use').map((b) => toolCallOf(b, cwd, options));
   return {
     kind: 'response',
     ts,
-    messageId: stringOr(m['id']) ?? stringOr(r['uuid']) ?? '',
+    messageId: messageIdOf(r, m),
     ...(model !== undefined && { model }),
     synthetic: model === '<synthetic>',
     stop: stringOr(m['stop_reason']) ?? null,
@@ -139,7 +154,7 @@ function toolResultOf(block: Record<string, unknown>, result: unknown, ts: numbe
  */
 export function classify(records: readonly unknown[], options: LoadOptions = {}): Classified {
   const recs = records.filter(isRecord);
-  const hasOrigin = recs.some((r) => r['type'] === 'user' && Boolean(r['origin']));
+  const hasOrigin = hasOrigins(recs);
   const cwd = cwdOf(recs);
   let title: string | undefined;
   const compactions: Compaction[] = [];

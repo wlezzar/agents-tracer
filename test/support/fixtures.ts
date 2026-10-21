@@ -25,3 +25,16 @@ export const SESSIONS = {
 export function sessionFile(id: string): string {
   return join(CLAUDE_CODE_STORE, `${id}.jsonl`);
 }
+
+/**
+ * A synthetic Claude Code store for the conversation (see test/fixtures/claude-code/README.md): one
+ * session with what the harness adds, permissions, reasoning, a compaction, and an agent. It is
+ * apart from {@link CLAUDE_CODE_STORE}, whose report and view the prototype's expectations hold.
+ */
+export const CONVERSATION_STORE = join(FIXTURES, 'claude-code', 'conversation');
+
+/** The conversation store's session, and its agent. */
+export const CONVERSATION = {
+  session: '7a3c9e1f-2b4d-4e6f-8a0b-1c2d3e4f5a6b',
+  agent: 'c1d2e3f4a5b6c7d8e',
+} as const;

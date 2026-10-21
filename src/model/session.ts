@@ -1,3 +1,4 @@
+import type { ConversationEntry } from './conversation.js';
 import type { TraceEvent } from './events.js';
 
 /**
@@ -28,6 +29,11 @@ export interface Transcript {
   readonly events: readonly TraceEvent[];
   /** The compactions, in file order. */
   readonly compactions: readonly Compaction[];
+  /**
+   * What the transcript says, in file order, when `LoadOptions.conversation` asked for it and the
+   * adapter reads it; absent otherwise.
+   */
+  readonly conversation?: readonly ConversationEntry[];
 }
 
 /** A subagent's transcript, as part of the session that started it. */

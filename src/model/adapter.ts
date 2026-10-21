@@ -46,6 +46,11 @@ export interface LoadOptions {
    * own tools, beyond util's built-in `SUBCOMMAND_TOOLS`.
    */
   readonly subcommandTools?: readonly string[];
+  /**
+   * Whether to read each transcript's conversation (`Transcript.conversation`) too: everything it
+   * says, which the timing does not need. False by default.
+   */
+  readonly conversation?: boolean;
 }
 
 /** How {@link Adapter.resolve} reads a reference. */

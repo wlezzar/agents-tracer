@@ -4,6 +4,7 @@ import { basename, dirname, join, relative } from 'node:path';
 import type { LoadOptions, ResolveOptions, SessionSummary, Transcript } from '../../model/index.js';
 import { isRecord, jsText, numberOr, parseJsonLines, stringOr } from '../../util/index.js';
 import { classify, textOf } from './classify.js';
+import { conversationOf } from './conversation.js';
 
 // Where Claude Code keeps a project's transcripts, and how they are found: the prototype's
 // readJsonl, listSessions, resolve, findSubagents, and workflowSummary.
@@ -26,9 +27,10 @@ export function readRecords(file: string): unknown[] {
   return parseJsonLines(readFileSync(file, 'utf8'));
 }
 
-/** A transcript file read into the neutral model. */
+/** A transcript file read into the neutral model, with its conversation when `options.conversation` asks for it. */
 export function readTranscript(file: string, options: LoadOptions = {}): Transcript {
-  const { events, compactions, cwd, title } = classify(readRecords(file), options);
+  const records = readRecords(file);
+  const { events, compactions, cwd, title } = classify(records, options);
   return {
     id: basename(file, EXT),
     path: file,
@@ -36,6 +38,7 @@ export function readTranscript(file: string, options: LoadOptions = {}): Transcr
     compactions,
     ...(cwd !== undefined && { cwd }),
     ...(title !== undefined && { title }),
+    ...(options.conversation === true && { conversation: conversationOf(records, cwd, options) }),
   };
 }
 

@@ -2,6 +2,19 @@
 
 export type { Adapter, AdapterRegistry, LoadOptions, ResolveOptions } from './adapter.js';
 export type {
+  CompactionEntry,
+  ContextEntry,
+  ContextSource,
+  ConversationEntry,
+  ConversationEntryKind,
+  NoticeEntry,
+  Permission,
+  PromptEntry,
+  ResponseBlock,
+  ResponseEntry,
+  ResultEntry,
+} from './conversation.js';
+export type {
   BackgroundDoneEvent,
   CommandEvent,
   CompactionDoneEvent,
