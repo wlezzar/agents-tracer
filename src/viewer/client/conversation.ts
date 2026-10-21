@@ -14,6 +14,7 @@ import type {
   Thread,
   ToolBlock,
 } from '../../view/types.js';
+import { agentTree, AgentTree } from './agentTree.js';
 import { readColors } from './colors.js';
 import { drawContextChart } from './contextChart.js';
 import {
@@ -33,10 +34,10 @@ import { calledTools, modelCalls, settingsOf, shapeChanges } from './conversatio
 import { byId, copyButton, el, nodes, present, queryAll, type Child } from './dom.js';
 import { fmt, kTok, oneLine, spansDays, stamp } from './format.js';
 import { parseTarget, targetHash, type Target } from './links.js';
-import { applyTheme, cycleTheme } from './theme.js';
+import { applyTheme, cycleTheme, onThemeApplied } from './theme.js';
 
 // The conversation page: one thread at a time (the main session's or an agent's), turn by turn,
-// with an outline of the turns, a chart of the context, filters, the findings (what looks worth
+// with the tree of the session's agents over time to move between threads, an outline of the turns, a chart of the context, filters, the findings (what looks worth
 // improving, with where each happened), and a drawer with the system prompt and tools the thread's
 // model calls were sent with. A tool call, a reasoning, the harness's context, or a compaction's
 // summary is one row until it is opened; what an opened row shows is built when it is first
@@ -135,6 +136,8 @@ export class ConversationPage {
   };
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
   private spy: IntersectionObserver | undefined;
+  /** The tree of agents over time, when the session has agents. */
+  private tree: AgentTree | null = null;
 
   constructor(data: ConversationData) {
     this.data = data;
@@ -190,6 +193,7 @@ export class ConversationPage {
       const t = this.byId.get(els.threadSelect.value);
       if (t) this.show(t, { lane: t.id });
     });
+    this.startTree();
     els.filter.replaceChildren(
       ...FILTERS.map((f) => el('option', { value: f }, filterLabel(f, data.conversation.shellLabel))),
     );
@@ -232,6 +236,64 @@ export class ConversationPage {
     this.show(first ?? this.thread, target);
   }
 
+  /** Shows the tree of agents over time, when the session has agents. */
+  private startTree(): void {
+    const root = agentTree(this.threads, this.data.conversation.groups);
+    if (root === null || this.threads.length < 2) return;
+    const scroll = byId('cv-tree-scroll', HTMLDivElement);
+    const tree = new AgentTree(
+      {
+        axis: byId('cv-tree-axis', HTMLCanvasElement),
+        rows: byId('cv-tree-rows', HTMLCanvasElement),
+        scroll,
+        spacer: byId('cv-tree-spacer', HTMLDivElement),
+        tip: this.els.tip,
+        compress: byId('cv-tree-compress', HTMLInputElement),
+        fit: byId('cv-tree-fit', HTMLButtonElement),
+        multiDay: this.multiDay,
+        stamp: this.stamp,
+        open: (t) => {
+          this.show(t, { lane: t.id });
+        },
+      },
+      root,
+      this.threads,
+    );
+    this.tree = tree;
+    byId('cv-tree', HTMLElement).hidden = false;
+    const kinds = new Map<string, number>();
+    for (const g of this.data.conversation.groups) kinds.set(g.kind, (kinds.get(g.kind) ?? 0) + 1);
+    byId('cv-tree-sub', HTMLSpanElement).textContent = [
+      count(this.threads.length - 1, 'agent'),
+      ...[...kinds].map(([kind, n]) => count(n, kind ? kind.toLowerCase() : 'group')),
+      `at most ${tree.peak} at once`,
+    ].join(' · ');
+    const key = (css: string, label: string): HTMLElement =>
+      el('span', {}, el('span', { class: 'key', style: `background:var(${css})` }), label);
+    byId('cv-tree-legend', HTMLSpanElement).replaceChildren(
+      key('--series-1', 'Model'),
+      key('--series-2', this.data.conversation.shellLabel),
+      key('--series-3', 'Other tools'),
+      key('--wait-you', 'Waiting'),
+      el('span', {}, '└ launched by its parent’s call'),
+    );
+    const toggle = byId('cv-tree-toggle', HTMLButtonElement);
+    const body = byId('cv-tree-body', HTMLDivElement);
+    toggle.addEventListener('click', () => {
+      const opening = body.hidden;
+      body.hidden = !opening;
+      toggle.setAttribute('aria-expanded', String(opening));
+      if (opening) tree.resize();
+    });
+    new ResizeObserver(() => {
+      tree.resize();
+    }).observe(scroll);
+    onThemeApplied(() => {
+      tree.draw();
+    });
+    tree.resize();
+  }
+
   // ---------- threads and state ----------
 
   /** Shows a thread, then what `target` points at in it. */
@@ -239,7 +301,9 @@ export class ConversationPage {
     const changed = t !== this.thread || !this.els.stream.hasChildNodes();
     this.thread = t;
     this.els.threadSelect.value = t.id;
+    this.tree?.setCurrent(t.id);
     if (changed) {
+      this.tree?.setCursor(null);
       this.renderStats();
       this.renderLaunch();
       this.renderChart();
@@ -481,6 +545,7 @@ export class ConversationPage {
           if (e.isIntersecting) {
             const n = Number(e.target.getAttribute('data-turn'));
             for (const [k, a] of links) a.classList.toggle('on', k === n);
+            this.tree?.setCursor(this.thread.turns.find((x) => x.n === n)?.ts ?? null);
           }
       },
       { rootMargin: '0px 0px -80% 0px' },
