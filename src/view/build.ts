@@ -176,6 +176,8 @@ export interface ViewOptions {
   readonly subcommandTools?: readonly string[];
   /** Where the session's conversation page is, which the page links to; the server's only. */
   readonly conversationHref?: string;
+  /** Where the page's link back to the index of sessions goes; the server's only. */
+  readonly indexHref?: string;
 }
 
 /**
@@ -257,6 +259,7 @@ export function buildView(analysis: SessionAnalysis, options: ViewOptions = {}):
     toolCategories,
     shellLabel: session.shellToolName ?? 'Shell',
     ...(options.conversationHref !== undefined && { conversationHref: options.conversationHref }),
+    ...(options.indexHref !== undefined && { indexHref: options.indexHref }),
   };
 }
 

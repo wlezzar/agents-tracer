@@ -194,17 +194,20 @@ export async function run(argv: readonly string[], io: CliIo, adapters: AdapterR
       }
       case 'serve': {
         const { adapter, store } = locate(command.global, io, adapters);
-        // A missing store is an error now rather than on the first request.
-        fromStore(store, () => statSync(store));
-        const server = await startServer({
+        const root = command.all ? adapter.defaultRoot(io.home) : undefined;
+        // A missing store or root is an error now rather than on the first request.
+        if (root === undefined) fromStore(store, () => statSync(store));
+        else if (statSync(root, { throwIfNoEntry: false })?.isDirectory() !== true)
+          throw new Error(`no projects at ${root}`);
+        const options = {
           adapter,
-          store,
           port: command.port,
           ...shell,
           ...(io.viewer !== undefined && { viewer: io.viewer }),
-        });
+        };
+        const server = await startServer(root === undefined ? { ...options, store } : { ...options, root });
         io.signal?.addEventListener('abort', () => void server.close(), { once: true });
-        print(`Serving ${store} on ${server.url}`);
+        print(`Serving ${root === undefined ? store : `every project in ${root}`} on ${server.url}`);
         return 0;
       }
     }

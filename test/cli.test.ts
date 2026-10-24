@@ -16,7 +16,9 @@ import {
   CLAUDE_CODE_STORE as store,
   CONVERSATION,
   CONVERSATION_STORE,
+  copyProjects,
   FIXTURES,
+  PROJECTS,
   SESSIONS,
 } from './support/fixtures.js';
 import { createMemoryAdapter, session, toolCall, transcript } from './support/memory-adapter.js';
@@ -268,6 +270,41 @@ describe('serve', () => {
       if (!closed) await new Promise((done) => setTimeout(done, 25));
     }
     expect(closed).toBe(true);
+  });
+
+  it('serves every project of the adapter’s root with --all', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'agents-tracer-home-'));
+    const root = join(home, '.claude', 'projects');
+    copyProjects(root);
+    const controller = new AbortController();
+    try {
+      const result = await runCli(['serve', '--all', '--port', '0'], { home, signal: controller.signal });
+      expect([result.code, result.stderr]).toEqual([0, '']);
+      const url = /^Serving every project in (.*) on (http:\/\/127\.0\.0\.1:\d+\/)\n$/.exec(result.stdout);
+      expect(url?.[1]).toBe(root);
+      const base = url?.[2] ?? '';
+      const page = await fetch(base).then((res) => res.text());
+      expect(page).toContain(`"href":"/p/${PROJECTS.blog}"`);
+      const res = await fetch(`${base}s/5e1f`);
+      expect([res.status, res.url]).toEqual([200, `${base}p/${PROJECTS.shop}/s/5e1f`]);
+      expect(await res.text()).toContain(SESSIONS.badge);
+    } finally {
+      controller.abort();
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses --all for a home without projects', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'agents-tracer-home-'));
+    try {
+      expect(await runCli(['serve', '--all'], { home })).toEqual({
+        code: 1,
+        stdout: '',
+        stderr: `agents-tracer: no projects at ${join(home, '.claude', 'projects')}\n`,
+      });
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 
   it('refuses a store that does not exist, and a port that is taken', async () => {

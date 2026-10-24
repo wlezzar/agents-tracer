@@ -12,12 +12,17 @@ export type * from '../conversation/types.js';
 // The fields and values are the prototype's, so that its view data and this one compare equal;
 // the only additions are ViewData.toolCategories, ViewData.shellLabel, ToolSpan.cat, and
 // ViewGroup.kind, which let the client color, filter, and name things by category instead of by an
-// agent's tool names, and the links to the conversation page (ViewData.conversationHref,
-// IndexSession.conversationHref, and each span's id), which the prototype has not. Numbers the prototype computes as NaN (the wall time of a transcript
-// without events) are null, as JSON writes NaN.
+// agent's tool names; the links to the conversation page (ViewData.conversationHref,
+// IndexSession.conversationHref, and each span's id), which the prototype has not; and, for the
+// server's pages of every project, ProjectsData, IndexData's projectsHref and cwd, and the
+// indexHref of ViewData and ConversationData. Numbers the prototype computes as NaN (the wall time
+// of a transcript without events) are null, as JSON writes NaN.
 
-/** What a page of the viewer shows: one session's timeline, its conversation, or the index of a store's sessions. */
-export type PageData = ViewData | IndexData | ConversationData;
+/**
+ * What a page of the viewer shows: one session's timeline, its conversation, the index of a store's
+ * sessions, or every project of a root.
+ */
+export type PageData = ViewData | IndexData | ConversationData | ProjectsData;
 
 /** One session: a lane per transcript, in groups. */
 export interface ViewData {
@@ -36,6 +41,8 @@ export interface ViewData {
   readonly shellLabel: string;
   /** Where the session's conversation page is, when the server serves it. */
   readonly conversationHref?: string;
+  /** Where the page's link back to the index of sessions goes, when the server serves it. */
+  readonly indexHref?: string;
 }
 
 export interface ViewSession {
@@ -207,6 +214,10 @@ export interface IndexData {
     /** Who wrote the sessions, the adapter's display name, as in `Claude Code sessions`. */
     readonly agent: string;
     readonly sessions: readonly IndexSession[];
+    /** Where the page of every project is, when the server serves the store as one of them. */
+    readonly projectsHref?: string;
+    /** The project's directory, when the store's summary names it. */
+    readonly cwd?: string;
   };
 }
 
@@ -234,4 +245,41 @@ export interface ConversationData {
   readonly serve?: true;
   /** Where the session's timeline is, when the server serves it. */
   readonly timelineHref?: string;
+  /** Where the page's link back to the index of sessions goes, when the server serves it. */
+  readonly indexHref?: string;
+}
+
+/** The page of every project in a root, which `serve --all` serves at `/`. */
+export interface ProjectsData {
+  readonly root: {
+    /** The root. */
+    readonly dir: string;
+    /** Who wrote the sessions, the adapter's display name, as in `Claude Code projects`. */
+    readonly agent: string;
+    readonly projects: readonly ViewProject[];
+  };
+}
+
+/** A project of the projects page: one store of the root. */
+export interface ViewProject {
+  /** The store's id in the root. */
+  readonly id: string;
+  /** The project's directory; null when its sessions do not name one. */
+  readonly cwd: string | null;
+  /** Where the server serves the project's index of sessions; null for an id it cannot put in a URL. */
+  readonly href: string | null;
+  /** Its sessions, newest first, for the search by id. */
+  readonly sessions: readonly ViewProjectSession[];
+}
+
+/** A session of a project, as the projects page searches it by id. */
+export interface ViewProjectSession {
+  readonly id: string;
+  /** Its transcript's size in bytes. */
+  readonly size: number;
+  /** When its transcript was last written, epoch milliseconds. */
+  readonly modified: number;
+  /** Its timeline and its conversation; null when the project's or the session's id cannot be in a URL. */
+  readonly href: string | null;
+  readonly conversationHref: string | null;
 }

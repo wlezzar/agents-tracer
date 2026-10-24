@@ -29,7 +29,7 @@ agents-tracer list
 agents-tracer report <session> [--timeline] [--turn <n>] [--top <n>] [--no-subagents] [--min-idle <seconds>]
 agents-tracer html <session> [--out <file>] [--conversation]
 agents-tracer transcript <session> [--context] [--max-output <n>] [--turn <n>] [--no-subagents] [--no-findings] [--setup] [--out <file>]
-agents-tracer serve [--port <n>]
+agents-tracer serve [--port <n>] [--all]
 ```
 
 Every command takes `--adapter <id>` (the agent, `claude-code` by default) and `--store <dir>` (the directory of the project's sessions; by default the agent's directory for the current one, such as `~/.claude/projects/-home-dev-shop` for Claude Code in `/home/dev/shop`; `--project` is an alias). A `<session>` is a session's id or a prefix of it, a subagent's id or a prefix of it, or the path of a transcript. Clock times are local.
@@ -200,6 +200,38 @@ Serving /home/dev/.claude/projects/-home-dev-shop on http://127.0.0.1:4390/
 ```bash
 ssh -N -L 4390:127.0.0.1:4390 dev-box
 ```
+
+`--all` serves every project's sessions rather than one project's: `/` lists the projects in the agent's directory of them (`~/.claude/projects` for Claude Code), and each project's index and sessions are under `/p/<project>`. `/s/<session id>` and `/s/<session id>/conversation` go to the one project that has a session or agent with that id, or with an id that starts with it, so `http://127.0.0.1:4390/s/<session id>/conversation` is a link you can type, or have a script or a hook print, to open a session's conversation from its id alone.
+
+```console
+$ agents-tracer serve --all
+Serving every project in /home/dev/.claude/projects on http://127.0.0.1:4390/
+```
+
+#### Run it as a service
+
+To keep `serve --all` running in the background, run it as a systemd user service. Write `~/.config/systemd/user/agents-tracer.service` with the absolute paths of `node` (`command -v node`, or `mise which node`) and of your checkout's build:
+
+```ini
+[Unit]
+Description=agents-tracer: every project's agent sessions on 127.0.0.1
+
+[Service]
+ExecStart=/usr/bin/node /home/dev/agents-tracer/dist/cli/main.js serve --all
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+Then start it, and have it start whenever you log in:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now agents-tracer
+```
+
+Your user's services stop when your last session ends. To keep it running after you log out, as on a machine you reach over SSH, run `loginctl enable-linger "$USER"`. Any account on the machine can connect to a port on 127.0.0.1, so run it this way only on a machine whose other accounts you trust.
 
 agents-tracer only reads transcripts. It prints the control characters a transcript's text may hold as visible stand-ins (`␛` for ESC), so that none can drive your terminal. Errors print one line to standard error, and the command exits with status 1.
 

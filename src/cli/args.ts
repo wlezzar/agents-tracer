@@ -24,6 +24,7 @@ const OPTIONS = {
   'min-idle': { type: 'string' },
   out: { type: 'string' },
   port: { type: 'string' },
+  all: { type: 'boolean' },
   conversation: { type: 'boolean' },
   context: { type: 'boolean' },
   'max-output': { type: 'string' },
@@ -40,7 +41,7 @@ const COMMANDS = {
   report: ['timeline', 'turn', 'top', 'no-subagents', 'min-idle'],
   html: ['out', 'conversation'],
   transcript: ['out', 'context', 'max-output', 'no-subagents', 'turn', 'no-findings', 'setup'],
-  serve: ['port'],
+  serve: ['port', 'all'],
 } as const satisfies Record<string, readonly OptionName[]>;
 
 export type CommandName = keyof typeof COMMANDS;
@@ -94,7 +95,13 @@ export type Command =
       /** Write the system prompt and the tools' definitions in full. */
       readonly setup: boolean;
     }
-  | { readonly name: 'serve'; readonly global: GlobalOptions; readonly port: number };
+  | {
+      readonly name: 'serve';
+      readonly global: GlobalOptions;
+      readonly port: number;
+      /** Serve every project's sessions, by project, rather than one store's. */
+      readonly all: boolean;
+    };
 
 /** The port `serve` listens on by default. */
 export const DEFAULT_PORT = 4390;
@@ -244,8 +251,16 @@ export function parseCommand(argv: readonly string[]): Command {
         setup: flag('setup'),
       };
     }
-    case 'serve':
+    case 'serve': {
       noArguments(name, rest);
-      return { name, global, port: parsed('port', (raw, v) => wholeNumber(raw, v, 0, 65535)) ?? DEFAULT_PORT };
+      const store = given.get('store') ?? given.get('project');
+      if (flag('all') && store !== undefined) throw new UsageError(`give ${store.raw} or --all, not both`);
+      return {
+        name,
+        global,
+        port: parsed('port', (raw, v) => wholeNumber(raw, v, 0, 65535)) ?? DEFAULT_PORT,
+        all: flag('all'),
+      };
+    }
   }
 }

@@ -18,7 +18,7 @@ Usage:
   agents-tracer report <session>      where a session's time went
   agents-tracer html <session>        a session's interactive timeline, in one HTML file
   agents-tracer transcript <session>  a session's conversation as Markdown
-  agents-tracer serve                 browse every session's timeline and conversation on 127.0.0.1
+  agents-tracer serve                 browse the project's sessions, or every project's, on 127.0.0.1
 
 A <session> is a session's id or a prefix of it, a subagent's id or a prefix of it, or the path of a
 transcript.
@@ -49,6 +49,8 @@ Transcript options:
 
 Serve options:
   --port <n>              the port to listen on (default: ${DEFAULT_PORT})
+  --all                   serve every project's sessions, by project, with a search by session id,
+                          rather than one store's
 
 Options:
   --adapter <id>          the agent whose transcripts to read (default: ${adapters.defaultId}); one of:

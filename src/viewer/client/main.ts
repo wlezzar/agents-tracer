@@ -5,7 +5,7 @@
 import { App } from './app.js';
 import { readColors } from './colors.js';
 import { ConversationPage } from './conversation.js';
-import { isConversationData, isIndexData, readPageData } from './data.js';
+import { isConversationData, isIndexData, isViewData, readPageData } from './data.js';
 import { renderIndex } from './indexPage.js';
 
 const data = readPageData();
@@ -14,6 +14,6 @@ if (isIndexData(data)) {
   renderIndex(data);
 } else if (isConversationData(data)) {
   new ConversationPage(data).start();
-} else {
+} else if (isViewData(data)) {
   new App(data).start();
 }

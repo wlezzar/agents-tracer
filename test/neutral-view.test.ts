@@ -259,6 +259,29 @@ describe('another agent’s sessions, served', () => {
     });
   });
 
+  it('serves them as the one project of the adapter’s root', async () => {
+    const adapter = createMemoryAdapter([full]);
+    const server = await startServer({
+      adapter,
+      root: adapter.defaultRoot('/home/dev'),
+      port: 0,
+      viewer: () => TEST_VIEWER,
+    });
+    try {
+      const page = async (path: string): Promise<unknown> => {
+        const res = await fetch(new URL(path, server.url));
+        expect(res.status).toBe(200);
+        return embedded(await res.text());
+      };
+      expect(await page('/')).toMatchObject({
+        root: { agent: 'Memory', projects: [{ id: 'memory', href: '/p/memory', sessions: [{ id: 'neutral-1' }] }] },
+      });
+      expect(await page('/s/neutral')).toMatchObject({ session: { id: 'neutral-1' }, indexHref: '/p/memory' });
+    } finally {
+      await server.close();
+    }
+  });
+
   it('builds the page on every request for an adapter without a version', async () => {
     const memory = createMemoryAdapter([full]);
     const unversioned: Adapter = {

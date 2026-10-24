@@ -21,6 +21,8 @@ export interface ConversationViewOptions {
   readonly serve?: boolean;
   /** Where the session's timeline is, which the page links to; the server's only. */
   readonly timelineHref?: string;
+  /** Where the page's link back to the index of sessions goes; the server's only. */
+  readonly indexHref?: string;
   /** The build time, epoch milliseconds; now by default. */
   readonly now?: number;
   /** The most characters of each text; {@link CONVERSATION_TEXT} by default. */
@@ -72,6 +74,7 @@ export function conversationView(conversation: Conversation, options: Conversati
     generated: options.now ?? Date.now(),
     ...(options.serve === true && { serve: true }),
     ...(options.timelineHref !== undefined && { timelineHref: options.timelineHref }),
+    ...(options.indexHref !== undefined && { indexHref: options.indexHref }),
   };
 }
 

@@ -89,8 +89,9 @@ describe('parseCommand', () => {
       out: 'x.html',
       conversation: true,
     });
-    expect(parseCommand(['serve'])).toEqual({ name: 'serve', global: {}, port: 4390 });
-    expect(parseCommand(['serve', '--port', '8080'])).toEqual({ name: 'serve', global: {}, port: 8080 });
+    expect(parseCommand(['serve'])).toEqual({ name: 'serve', global: {}, port: 4390, all: false });
+    expect(parseCommand(['serve', '--port', '8080'])).toEqual({ name: 'serve', global: {}, port: 8080, all: false });
+    expect(parseCommand(['serve', '--all'])).toEqual({ name: 'serve', global: {}, port: 4390, all: true });
   });
 
   it('reads transcript', () => {
@@ -170,6 +171,10 @@ describe('parseCommand', () => {
     [['report', 'a', 'b'], 'report takes one session, not 2: a b'],
     [['list', 'extra'], 'list takes no arguments, not extra'],
     [['list', '--store', 'a', '--project', 'b'], 'give --store or --project, not both'],
+    [['serve', '--all', '--store', 'a'], 'give --store or --all, not both'],
+    [['serve', '--project=a', '--all'], 'give --project or --all, not both'],
+    [['serve', '--all=yes'], '--all takes no value'],
+    [['list', '--all'], '--all does not apply to list'],
   ])('refuses %j: %s', (argv, message) => {
     expect(() => parseCommand(argv)).toThrow(new UsageError(message));
   });
