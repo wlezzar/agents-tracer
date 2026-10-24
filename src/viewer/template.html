@@ -250,8 +250,10 @@ pre {
 .tip .row { display: flex; align-items: center; gap: 6px; }
 .tip .d { color: var(--text-secondary); overflow-wrap: anywhere; }
 
-#index { padding: 0 20px 32px; }
-#index .pane { padding: 10px 12px; }
+#index, #projects { padding: 0 20px 32px; }
+#index .pane, #projects .pane { padding: 10px 12px; }
+#projects-sessions { margin-bottom: 12px; }
+#projects-q { width: 340px; }
 
 /* The conversation page */
 #conversation header.top a { white-space: nowrap; }
@@ -449,12 +451,23 @@ mark { background: rgba(235, 104, 52, 0.32); color: inherit; border-radius: 2px;
 </div>
 <div id="index" hidden>
   <header class="top" style="padding-left:0">
+    <a id="index-back" href="/" hidden>← All projects</a>
     <h1 id="index-title">Sessions</h1>
     <span id="index-dir" class="muted"></span>
     <span class="spacer"></span>
     <input type="search" id="index-q" placeholder="Filter sessions">
   </header>
   <div class="pane"><div id="index-table"></div></div>
+</div>
+<div id="projects" hidden>
+  <header class="top" style="padding-left:0">
+    <h1 id="projects-title">Projects</h1>
+    <span id="projects-dir" class="muted"></span>
+    <span class="spacer"></span>
+    <input type="search" id="projects-q" placeholder="Filter projects, or paste a session id" aria-label="Filter projects, or paste a session id">
+  </header>
+  <div class="pane" id="projects-sessions" hidden></div>
+  <div class="pane" id="projects-table"></div>
 </div>
 <div id="conversation" hidden>
   <header class="top">

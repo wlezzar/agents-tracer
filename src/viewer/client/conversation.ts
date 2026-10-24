@@ -163,7 +163,9 @@ export class ConversationPage {
     byId('cv-title', HTMLHeadingElement).textContent = title;
     byId('cv-subtitle', HTMLSpanElement).textContent =
       `${session.id}${session.cwd === null ? '' : ` · ${session.cwd}`}`;
-    byId('cv-back', HTMLAnchorElement).hidden = data.serve !== true;
+    const back = byId('cv-back', HTMLAnchorElement);
+    back.hidden = data.serve !== true;
+    if (data.indexHref !== undefined) back.href = data.indexHref;
     const timeline = byId('cv-timeline', HTMLAnchorElement);
     if (data.timelineHref !== undefined) {
       timeline.href = data.timelineHref;

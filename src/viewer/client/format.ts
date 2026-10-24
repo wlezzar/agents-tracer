@@ -18,6 +18,12 @@ export function kTok(n: number | null | undefined): string {
   return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n);
 }
 
+/** A size in bytes: `12K`, or `3.4M` from a megabyte. */
+export function bytes(n: number): string {
+  const k = Math.round(n / 1024);
+  return k >= 1024 ? `${(n / (1024 * 1024)).toFixed(1)}M` : `${k}K`;
+}
+
 export function two(n: number): string {
   return String(n).padStart(2, '0');
 }

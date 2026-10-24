@@ -2,7 +2,8 @@ import type { IndexData } from '../../view/types.js';
 import { byId, el } from './dom.js';
 import { clock, dayStr, fmt, oneLine } from './format.js';
 
-// The server's index page: a store's sessions, newest first, filtered as you type.
+// The server's index page: a store's sessions, newest first, filtered as you type, and a link to
+// the projects page when the store is one of them.
 
 export function renderIndex(data: IndexData): void {
   const { index } = data;
@@ -10,7 +11,12 @@ export function renderIndex(data: IndexData): void {
   const title = `${index.agent} sessions`;
   document.title = title;
   byId('index-title', HTMLHeadingElement).textContent = title;
-  byId('index-dir', HTMLSpanElement).textContent = index.projectDir;
+  byId('index-dir', HTMLSpanElement).textContent = index.cwd ?? index.projectDir;
+  const back = byId('index-back', HTMLAnchorElement);
+  if (index.projectsHref !== undefined) {
+    back.href = index.projectsHref;
+    back.hidden = false;
+  }
   const rows = index.sessions.slice().sort((a, b) => b.start - a.start);
   const q = byId('index-q', HTMLInputElement);
   const draw = (): void => {

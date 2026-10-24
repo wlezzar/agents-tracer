@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
-import { cap, clock, dayStr, fmt, kTok, oneLine, pct, spansDays, stamp } from './format.js';
+import { bytes, cap, clock, dayStr, fmt, kTok, oneLine, pct, spansDays, stamp } from './format.js';
 
 // Tests run in Europe/Paris (vitest.config.ts).
 
 describe('the viewer’s formatting', () => {
+  it('writes sizes in kilobytes, and from a megabyte in megabytes', () => {
+    expect([0, 512, 2048, 1023 * 1024, 1024 * 1024 - 1, 3.4 * 1024 * 1024].map(bytes)).toEqual([
+      '0K',
+      '1K',
+      '2K',
+      '1023K',
+      '1.0M',
+      '3.4M',
+    ]);
+  });
+
   it('writes durations, an en dash for a missing one', () => {
     expect([0, 950, 9949, 9950, 59_499, 60_000, 3_599_000, 3_600_000, 5_430_000].map(fmt)).toEqual([
       '0.0s',

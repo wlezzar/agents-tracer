@@ -142,7 +142,9 @@ export class App {
     byId('title', HTMLHeadingElement).textContent = data.session.title ?? data.session.id;
     byId('subtitle', HTMLSpanElement).textContent =
       `${data.session.id} · ${dayStr(this.T0)} ${clock(this.T0, false)} → ${dayStr(this.T1)} ${clock(this.T1, false)}`;
-    byId('back', HTMLAnchorElement).hidden = data.serve !== true;
+    const back = byId('back', HTMLAnchorElement);
+    back.hidden = data.serve !== true;
+    if (data.indexHref !== undefined) back.href = data.indexHref;
     const conversation = byId('conversation-link', HTMLAnchorElement);
     if (data.conversationHref !== undefined) {
       conversation.href = data.conversationHref;

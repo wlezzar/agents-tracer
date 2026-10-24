@@ -201,7 +201,7 @@ Serving /home/dev/.claude/projects/-home-dev-shop on http://127.0.0.1:4390/
 ssh -N -L 4390:127.0.0.1:4390 dev-box
 ```
 
-`--all` serves every project's sessions rather than one project's: `/` lists the projects in the agent's directory of them (`~/.claude/projects` for Claude Code), and each project's index and sessions are under `/p/<project>`. `/s/<session id>` and `/s/<session id>/conversation` go to the one project that has a session or agent with that id, or with an id that starts with it, so `http://127.0.0.1:4390/s/<session id>/conversation` is a link you can type, or have a script or a hook print, to open a session's conversation from its id alone.
+`--all` serves every project's sessions rather than one project's: `/` lists the projects in the agent's directory of them (`~/.claude/projects` for Claude Code), and each project's index and sessions are under `/p/<project>`. `/s/<session id>` and `/s/<session id>/conversation` go to the one project that has a session or agent with that id, or with an id that starts with it, so `http://127.0.0.1:4390/s/<session id>/conversation` is a link you can type, or have a script or a hook print, to open a session's conversation from its id alone. The projects page lists the projects by when they were last active, with their sessions and size, and its search filters them by directory or id as you type; type or paste a session id, or the start of one, to list the sessions it matches, and press Enter to open the conversation of the only one, or the only project that matches.
 
 ```console
 $ agents-tracer serve --all
