@@ -123,3 +123,28 @@ export interface SessionSummary {
   /** The transcript's size in bytes. */
   readonly size: number;
 }
+
+/** A store as the projects page shows it: one project's sessions, from the files alone. */
+export interface StoreSummary {
+  /**
+   * The store's name in its root, such as its directory's name. The server opens it at `/p/<id>`
+   * only for ASCII letters, digits, `_`, and `-`.
+   */
+  readonly id: string;
+  /** The store's path, which `Adapter.listSessions` and `Adapter.resolve` take. */
+  readonly path: string;
+  /** The project's directory, as the newest session that names one recorded it. */
+  readonly cwd?: string;
+  /** Its sessions' transcripts, newest first by modification time. */
+  readonly sessions: readonly StoredSession[];
+}
+
+/** A session's transcript as a store's summary lists it, without reading it. */
+export interface StoredSession {
+  /** The session's id, which `Adapter.resolve` accepts. */
+  readonly id: string;
+  /** The transcript's size in bytes. */
+  readonly size: number;
+  /** When the transcript was last written, epoch milliseconds. */
+  readonly modified: number;
+}

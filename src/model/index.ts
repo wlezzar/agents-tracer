@@ -31,5 +31,14 @@ export type {
   TraceEventKind,
   Usage,
 } from './events.js';
-export type { AgentTranscript, Compaction, Group, Session, SessionSummary, Transcript } from './session.js';
+export type {
+  AgentTranscript,
+  Compaction,
+  Group,
+  Session,
+  SessionSummary,
+  StoredSession,
+  StoreSummary,
+  Transcript,
+} from './session.js';
 export type { ToolCall, ToolCategory, ToolDescription } from './tools.js';

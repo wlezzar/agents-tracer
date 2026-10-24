@@ -1,7 +1,14 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, statSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
 
-import type { LoadOptions, ResolveOptions, SessionSummary, Transcript } from '../../model/index.js';
+import type {
+  LoadOptions,
+  ResolveOptions,
+  SessionSummary,
+  StoredSession,
+  StoreSummary,
+  Transcript,
+} from '../../model/index.js';
 import { isRecord, jsText, numberOr, parseJsonLines, stringOr } from '../../util/index.js';
 import { classify, textOf } from './classify.js';
 import { conversationOf, requestShapesOf } from './conversation.js';
@@ -9,6 +16,7 @@ import { conversationOf, requestShapesOf } from './conversation.js';
 // Where Claude Code keeps a project's transcripts, and how they are found: the prototype's
 // readJsonl, listSessions, resolve, findSubagents, and workflowSummary.
 //
+//   ~/.claude/projects/                                                   the root of every project's store
 //   ~/.claude/projects/<project>/<session>.jsonl                          a session
 //   <project>/<session>/subagents/**/agent-<agentId>.jsonl                its subagents
 //   <project>/<session>/subagents/**/agent-<agentId>.meta.json            what each was asked
@@ -17,9 +25,14 @@ import { conversationOf, requestShapesOf } from './conversation.js';
 
 const EXT = '.jsonl';
 
+/** The directory of every project's store. */
+export function defaultRoot(home: string): string {
+  return join(home, '.claude', 'projects');
+}
+
 /** The store of the project in `cwd`: every character outside [a-zA-Z0-9] of it becomes `-`. */
 export function defaultStore(cwd: string, home: string): string {
-  return join(home, '.claude', 'projects', cwd.replace(/[^a-zA-Z0-9]/g, '-'));
+  return join(defaultRoot(home), cwd.replace(/[^a-zA-Z0-9]/g, '-'));
 }
 
 /** The records of a transcript file, as `unknown`; a partial last line is skipped. */
@@ -76,7 +89,7 @@ function firstPromptOf(records: readonly Record<string, unknown>[]): string | un
   return textOf(isRecord(message) ? message['content'] : undefined);
 }
 
-function summaryOf(file: string): SessionSummary {
+function summaryOf(file: string, size: number): SessionSummary {
   const records = readRecords(file).filter(isRecord);
   const times: number[] = [];
   for (const r of records) {
@@ -92,19 +105,105 @@ function summaryOf(file: string): SessionSummary {
     path: file,
     start,
     end,
-    size: statSync(file).size,
+    size,
     ...(title !== undefined && { title }),
     ...(firstPrompt !== undefined && { firstPrompt }),
   };
 }
 
+/** A transcript's summary, and the size and modification time it was read at. */
+interface KeptSummary {
+  readonly size: number;
+  readonly mtimeMs: number;
+  readonly summary: SessionSummary;
+}
+
+/**
+ * Each store's summaries by file name, kept until a transcript's size or modification time changes:
+ * the server lists a store again on every load of its index, and a store can hold hundreds of
+ * megabytes of transcripts.
+ */
+const kept = new Map<string, Map<string, KeptSummary>>();
+
 /** The store's sessions with a timestamped record, oldest first; ties keep the directory's order. */
 export function listSessions(store: string): SessionSummary[] {
-  return readdirSync(store)
-    .filter((f) => f.endsWith(EXT))
-    .map((f) => summaryOf(join(store, f)))
+  const before = kept.get(store);
+  // Rebuilt from the files there now, so a deleted transcript's summary goes with it.
+  const now = new Map<string, KeptSummary>();
+  for (const f of readdirSync(store)) {
+    if (!f.endsWith(EXT)) continue;
+    const file = join(store, f);
+    // Stat before reading, so that a write after the stat is read on the next call.
+    const { size, mtimeMs } = statSync(file);
+    const hit = before?.get(f);
+    now.set(f, hit?.size === size && hit.mtimeMs === mtimeMs ? hit : { size, mtimeMs, summary: summaryOf(file, size) });
+  }
+  kept.set(store, now);
+  return [...now.values()]
+    .map((k) => k.summary)
     .filter((s) => Number.isFinite(s.start))
     .sort((x, y) => x.start - y.start);
+}
+
+/** The store's transcripts that are still there, newest first, from their stats alone. */
+function storedSessions(store: string): StoredSession[] {
+  return readdirSync(store)
+    .filter((f) => f.endsWith(EXT))
+    .flatMap((f) => {
+      // Undefined for a transcript deleted since the directory was read.
+      const stat = statSync(join(store, f), { throwIfNoEntry: false });
+      return stat?.isFile() === true ? [{ id: basename(f, EXT), size: stat.size, modified: stat.mtimeMs }] : [];
+    })
+    .sort((x, y) => y.modified - x.modified);
+}
+
+/** The most of a transcript's head read for its working directory. */
+const HEAD_BYTES = 64 * 1024;
+
+/** The working directory of the first record in the head of a transcript that names one. */
+function headCwd(file: string): string | undefined {
+  let fd: number;
+  try {
+    fd = openSync(file, 'r');
+  } catch (err) {
+    // Deleted since it was listed.
+    if (isRecord(err) && err['code'] === 'ENOENT') return undefined;
+    throw err;
+  }
+  try {
+    const head = Buffer.alloc(HEAD_BYTES);
+    const n = readSync(fd, head, 0, HEAD_BYTES, 0);
+    // A record cut off at the end of the head is a partial last line, which parseJsonLines skips.
+    for (const r of parseJsonLines(head.toString('utf8', 0, n))) {
+      const cwd = isRecord(r) ? r['cwd'] : undefined;
+      if (typeof cwd === 'string' && cwd !== '') return cwd;
+    }
+    return undefined;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/**
+ * The root's stores that hold a session, ordered by id: each of its directories, with its
+ * transcripts newest first and the project's directory as the newest of them that names one records
+ * it. Claude Code keeps the directory of a project that has only its memory left; it is left out.
+ */
+export function listStores(root: string): StoreSummary[] {
+  const stores: StoreSummary[] = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const path = join(root, entry.name);
+    const sessions = storedSessions(path);
+    if (sessions.length === 0) continue;
+    let cwd: string | undefined;
+    for (const s of sessions) {
+      cwd = headCwd(join(path, `${s.id}${EXT}`));
+      if (cwd !== undefined) break;
+    }
+    stores.push({ id: entry.name, path, ...(cwd !== undefined && { cwd }), sessions });
+  }
+  return stores.sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
 }
 
 /**

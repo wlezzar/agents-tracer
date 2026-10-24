@@ -1,3 +1,4 @@
+import { cpSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Where the synthetic fixtures live, for tests in any directory.
@@ -38,3 +39,15 @@ export const CONVERSATION = {
   session: '7a3c9e1f-2b4d-4e6f-8a0b-1c2d3e4f5a6b',
   agent: 'c1d2e3f4a5b6c7d8e',
 } as const;
+
+/** The projects {@link copyProjects} writes, named as Claude Code names the stores of `/home/dev/shop` and `/home/dev/blog`. */
+export const PROJECTS = { shop: '-home-dev-shop', blog: '-home-dev-blog' } as const;
+
+/**
+ * Writes a root of projects into `root`, as `~/.claude/projects` would be: {@link CLAUDE_CODE_STORE}
+ * as {@link PROJECTS}' shop and {@link CONVERSATION_STORE} as its blog.
+ */
+export function copyProjects(root: string): void {
+  cpSync(CLAUDE_CODE_STORE, join(root, PROJECTS.shop), { recursive: true });
+  cpSync(CONVERSATION_STORE, join(root, PROJECTS.blog), { recursive: true });
+}

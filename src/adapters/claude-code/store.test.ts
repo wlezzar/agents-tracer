@@ -1,14 +1,23 @@
-import { appendFileSync, cpSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { CLAUDE_CODE_STORE as store, SESSIONS, sessionFile } from '../../../test/support/fixtures.js';
 import {
+  CLAUDE_CODE_STORE as store,
+  CONVERSATION,
+  copyProjects,
+  PROJECTS,
+  SESSIONS,
+  sessionFile,
+} from '../../../test/support/fixtures.js';
+import {
+  defaultRoot,
   defaultStore,
   findSubagents,
   listSessions,
+  listStores,
   readTranscript,
   resolve,
   sessionVersion,
@@ -21,6 +30,79 @@ describe('defaultStore', () => {
   it('names the project by its directory, every character outside [a-zA-Z0-9] a dash', () => {
     expect(defaultStore('/home/dev/shop', '/home/dev')).toBe('/home/dev/.claude/projects/-home-dev-shop');
     expect(defaultStore('/home/dev/my_app.v2', '/home/dev')).toBe('/home/dev/.claude/projects/-home-dev-my-app-v2');
+  });
+});
+
+describe('defaultRoot', () => {
+  it('is the directory of every project’s store', () => {
+    expect(defaultRoot('/home/dev')).toBe('/home/dev/.claude/projects');
+  });
+});
+
+describe('listStores', () => {
+  const root = mkdtempSync(join(tmpdir(), 'agents-tracer-root-'));
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+  copyProjects(root);
+  const shop = join(root, PROJECTS.shop);
+  const blog = join(root, PROJECTS.blog);
+  const written = (dir: string, id: string, minute: number, text?: string): string => {
+    const file = join(dir, `${id}.jsonl`);
+    if (text !== undefined) writeFileSync(file, text);
+    const at = new Date(Date.UTC(2026, 2, 20, 9, minute));
+    utimesSync(file, at, at);
+    return file;
+  };
+  const stored = (file: string, id: string, minute: number) => ({
+    id,
+    size: statSync(file).size,
+    modified: Date.UTC(2026, 2, 20, 9, minute),
+  });
+  const badge = written(shop, SESSIONS.badge, 3);
+  const compaction = written(shop, SESSIONS.compaction, 2);
+  const oldFormat = written(shop, SESSIONS.oldFormat, 1);
+  const conversation = written(blog, CONVERSATION.session, 1);
+  // The newest names no working directory, and the next names an empty one before the blog's.
+  const unnamed = written(blog, 'e0000000-0000-4000-8000-000000000002', 6, '{"type":"permission-mode"}\n');
+  const named = written(
+    blog,
+    'e0000000-0000-4000-8000-000000000001',
+    5,
+    '{"type":"permission-mode","cwd":""}\n{"type":"user","cwd":"/home/dev/blog"}\n',
+  );
+  mkdirSync(join(root, '-home-dev-empty'));
+  mkdirSync(join(root, '-home-dev-notes', 'memory'), { recursive: true });
+  writeFileSync(join(root, '-home-dev-notes', 'memory', 'x.md'), 'notes');
+  writeFileSync(join(root, 'stray.jsonl'), '');
+
+  it('lists the directories that hold a session by id, each with its sessions newest first and its project’s directory', () => {
+    expect(listStores(root)).toEqual([
+      {
+        id: PROJECTS.blog,
+        path: blog,
+        cwd: '/home/dev/blog',
+        sessions: [
+          stored(unnamed, 'e0000000-0000-4000-8000-000000000002', 6),
+          stored(named, 'e0000000-0000-4000-8000-000000000001', 5),
+          stored(conversation, CONVERSATION.session, 1),
+        ],
+      },
+      {
+        id: PROJECTS.shop,
+        path: shop,
+        cwd: '/home/dev/shop',
+        sessions: [
+          stored(badge, SESSIONS.badge, 3),
+          stored(compaction, SESSIONS.compaction, 2),
+          stored(oldFormat, SESSIONS.oldFormat, 1),
+        ],
+      },
+    ]);
+  });
+
+  it('throws when the root cannot be read', () => {
+    expect(() => listStores(join(root, 'missing'))).toThrow(/ENOENT/);
   });
 });
 
@@ -70,6 +152,36 @@ describe('listSessions', () => {
         ['one', Date.parse('2026-01-02T03:04:05.000Z'), Date.parse('2026-01-02T03:04:05.000Z'), undefined],
       ]);
     });
+  });
+});
+
+describe('listSessions over a store that changes', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'agents-tracer-changes-'));
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+  cpSync(store, dir, { recursive: true });
+  const listed = (at: string) => listSessions(at).map((s) => ({ ...s, path: relative(at, s.path) }));
+  /** What a store never listed before lists for the same files. */
+  const unseen = () => {
+    const copy = mkdtempSync(join(tmpdir(), 'agents-tracer-unseen-'));
+    try {
+      cpSync(dir, copy, { recursive: true });
+      return listed(copy);
+    } finally {
+      rmSync(copy, { recursive: true, force: true });
+    }
+  };
+
+  it('reads a transcript again once it is written to, and leaves out one that is deleted', () => {
+    expect(listed(dir)).toEqual(unseen());
+    const late = { type: 'user', timestamp: '2026-03-16T08:00:00.000Z', message: { role: 'user', content: 'Later' } };
+    appendFileSync(join(dir, `${SESSIONS.oldFormat}.jsonl`), `\n${JSON.stringify(late)}\n`);
+    expect(listed(dir).find((s) => s.id === SESSIONS.oldFormat)?.end).toBe(Date.parse(late.timestamp));
+    expect(listed(dir)).toEqual(unseen());
+    rmSync(join(dir, `${SESSIONS.compaction}.jsonl`));
+    expect(listed(dir).map((s) => s.id)).toEqual([SESSIONS.oldFormat, SESSIONS.badge]);
+    expect(listed(dir)).toEqual(unseen());
   });
 });
 

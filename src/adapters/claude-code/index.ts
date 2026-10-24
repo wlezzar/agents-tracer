@@ -1,9 +1,11 @@
 import type { Adapter, AgentTranscript, Group, LoadOptions, Session } from '../../model/index.js';
 import {
+  defaultRoot,
   defaultStore,
   findSubagents,
   isSubagentFile,
   listSessions,
+  listStores,
   readTranscript,
   resolve,
   sessionVersion,
@@ -57,6 +59,8 @@ export const claudeCode: Adapter = {
   id: CLAUDE_CODE_ID,
   displayName: 'Claude Code',
   defaultStore,
+  defaultRoot,
+  listStores,
   listSessions,
   resolve,
   load: loadSession,

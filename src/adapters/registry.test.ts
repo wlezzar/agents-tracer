@@ -8,6 +8,8 @@ const fake = (id: string): Adapter => ({
   id,
   displayName: `Fake ${id}`,
   defaultStore: (cwd, home) => `${home}/.fake/${cwd}`,
+  defaultRoot: (home) => `${home}/.fake`,
+  listStores: () => [],
   listSessions: () => [],
   resolve: (_store, ref) => ref,
   load: () => {

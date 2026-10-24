@@ -1,11 +1,12 @@
-import type { Session, SessionSummary } from './session.js';
+import type { Session, SessionSummary, StoreSummary } from './session.js';
 
 /**
  * Reads one coding agent's local transcripts into the neutral model. Only an adapter knows its
  * agent's transcript format, file layout, and tool names; everything else reads what it returns.
  *
- * A store is the directory that holds one project's sessions. Synchronous file IO is fine: the CLI
- * and the server read one store at a time.
+ * A store is the directory that holds one project's sessions, and a root the directory that holds
+ * every project's store. Synchronous file IO is fine: each command, and each page the server
+ * builds, reads one store or lists one root's stores.
  */
 export interface Adapter {
   /** The id `--adapter` takes, such as `claude-code`. */
@@ -14,6 +15,10 @@ export interface Adapter {
   readonly displayName: string;
   /** The store that holds the sessions of the project in `cwd`, for the user whose home is `home`. */
   defaultStore(cwd: string, home: string): string;
+  /** The directory that holds every project's store, for the user whose home is `home`. */
+  defaultRoot(home: string): string;
+  /** The stores in `root` that hold at least one session, ordered by id. Throws when the root cannot be read. */
+  listStores(root: string): StoreSummary[];
   /**
    * The store's sessions, oldest first by start, ties in the adapter's discovery order. Sessions
    * without any timestamped record are left out. Throws when the store cannot be read.

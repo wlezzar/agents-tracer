@@ -9,6 +9,7 @@ import type {
   Group,
   Session,
   SessionSummary,
+  StoredSession,
   ToolCall,
   ToolCategory,
   ToolDescription,
@@ -59,8 +60,9 @@ export function toolCall(
 }
 
 /**
- * An adapter over sessions held in memory: its store is ignored, a session's ref is its main
- * transcript's id or a unique prefix of one, and its path is that transcript's path.
+ * An adapter over sessions held in memory: its store is ignored, its root holds one store, `memory`,
+ * a session's ref is its main transcript's id or a unique prefix of one, and its path is that
+ * transcript's path.
  */
 export function createMemoryAdapter(sessions: readonly Session[]): Adapter {
   const byPath = new Map(sessions.map((s) => [s.main.path, s]));
@@ -82,6 +84,16 @@ export function createMemoryAdapter(sessions: readonly Session[]): Adapter {
     id: MEMORY_ADAPTER_ID,
     displayName: 'Memory',
     defaultStore: () => 'memory:',
+    defaultRoot: () => 'memory:',
+    listStores: () => {
+      const stored = sessions
+        .flatMap((s): StoredSession[] => {
+          const listed = summary(s);
+          return listed === undefined ? [] : [{ id: listed.id, size: 0, modified: listed.end }];
+        })
+        .sort((a, b) => b.modified - a.modified);
+      return stored.length === 0 ? [] : [{ id: 'memory', path: 'memory:', sessions: stored }];
+    },
     listSessions: () => sessions.flatMap((s) => summary(s) ?? []).sort((a, b) => a.start - b.start),
     resolve: (_store, ref, options = {}) => {
       const paths = options.paths ?? true;

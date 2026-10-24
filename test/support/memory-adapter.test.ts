@@ -37,6 +37,20 @@ describe('the memory adapter', () => {
     ]);
   });
 
+  it('holds the sessions with events in one store at its root, newest first', () => {
+    expect(adapter.defaultRoot('/home/dev')).toBe('memory:');
+    expect(adapter.listStores(adapter.defaultRoot('/home/dev'))).toEqual([
+      {
+        id: 'memory',
+        path: 'memory:',
+        sessions: [
+          { id: 'aaa111', size: 0, modified: t0 + 2000 },
+          { id: 'aab222', size: 0, modified: t0 - 60_000 },
+        ],
+      },
+    ]);
+  });
+
   it('resolves unique prefixes and loads the session', () => {
     expect(adapter.load(adapter.resolve('memory:', 'aaa'))).toBe(first);
     expect(() => adapter.resolve('memory:', 'aa')).toThrow('"aa" matches 2 sessions; give more of the id');

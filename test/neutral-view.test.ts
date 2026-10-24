@@ -265,6 +265,8 @@ describe('another agent’s sessions, served', () => {
       id: memory.id,
       displayName: memory.displayName,
       defaultStore: (cwd, home) => memory.defaultStore(cwd, home),
+      defaultRoot: (home) => memory.defaultRoot(home),
+      listStores: (root) => memory.listStores(root),
       listSessions: (store) => memory.listSessions(store),
       resolve: (store, ref, options) => memory.resolve(store, ref, options),
       load: (path, options) => memory.load(path, options),
